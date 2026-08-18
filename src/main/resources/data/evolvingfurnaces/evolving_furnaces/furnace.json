@@ -1,0 +1,244 @@
+{
+  "levels": [
+    {
+      "level": 1,
+      "name": "copper",
+      "display_name": {
+        "en_us": "Copper Furnace",
+        "fr_fr": "Fourneau en cuivre"
+      },
+      "style": {
+        "block": "minecraft:copper_block",
+        "texture": "side"
+      },
+      "required_cooks": 0,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:copper_block"
+          }
+        ],
+        "experience_levels": 2
+      },
+      "cook_time": 200,
+      "batch_size": 1
+    },
+    {
+      "level": 2,
+      "name": "amethyst",
+      "display_name": {
+        "en_us": "Amethyst Furnace",
+        "fr_fr": "Fourneau en améthyste"
+      },
+      "style": {
+        "block": "minecraft:amethyst_block",
+        "texture": "side"
+      },
+      "required_cooks": 256,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:amethyst_block"
+          }
+        ],
+        "experience_levels": 5
+      },
+      "cook_time": 190,
+      "batch_size": 1
+    },
+    {
+      "level": 3,
+      "name": "iron",
+      "display_name": {
+        "en_us": "Iron Furnace",
+        "fr_fr": "Fourneau en fer"
+      },
+      "style": {
+        "block": "minecraft:iron_block",
+        "texture": "side"
+      },
+      "required_cooks": 1024,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:iron_block"
+          }
+        ],
+        "experience_levels": 8
+      },
+      "cook_time": 180,
+      "batch_size": 1
+    },
+    {
+      "level": 4,
+      "name": "lapis",
+      "display_name": {
+        "en_us": "Lapis Lazuli Furnace",
+        "fr_fr": "Fourneau en lapis-lazuli"
+      },
+      "style": {
+        "block": "minecraft:lapis_block",
+        "texture": "side"
+      },
+      "required_cooks": 4096,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:lapis_block"
+          }
+        ],
+        "experience_levels": 10
+      },
+      "cook_time": 170,
+      "batch_size": 2
+    },
+    {
+      "level": 5,
+      "name": "redstone",
+      "display_name": {
+        "en_us": "Redstone Furnace",
+        "fr_fr": "Fourneau en redstone"
+      },
+      "style": {
+        "block": "minecraft:redstone_block",
+        "texture": "side"
+      },
+      "required_cooks": 16384,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:redstone_block"
+          }
+        ],
+        "experience_levels": 12
+      },
+      "cook_time": 160,
+      "batch_size": 2
+    },
+    {
+      "level": 6,
+      "name": "gold",
+      "display_name": {
+        "en_us": "Gold Furnace",
+        "fr_fr": "Fourneau en or"
+      },
+      "style": {
+        "block": "minecraft:gold_block",
+        "texture": "side"
+      },
+      "required_cooks": 65536,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:gold_block"
+          }
+        ],
+        "experience_levels": 15
+      },
+      "cook_time": 150,
+      "batch_size": 2
+    },
+    {
+      "level": 7,
+      "name": "diamond",
+      "display_name": {
+        "en_us": "Diamond Furnace",
+        "fr_fr": "Fourneau en diamant"
+      },
+      "style": {
+        "block": "minecraft:diamond_block",
+        "texture": "side"
+      },
+      "required_cooks": 262144,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:diamond_block"
+          }
+        ],
+        "experience_levels": 18
+      },
+      "cook_time": 140,
+      "batch_size": 4
+    },
+    {
+      "level": 8,
+      "name": "emerald",
+      "display_name": {
+        "en_us": "Emerald Furnace",
+        "fr_fr": "Fourneau en émeraude"
+      },
+      "style": {
+        "block": "minecraft:emerald_block",
+        "texture": "side"
+      },
+      "required_cooks": 1048576,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:emerald_block"
+          }
+        ],
+        "experience_levels": 20
+      },
+      "cook_time": 130,
+      "batch_size": 4
+    },
+    {
+      "level": 9,
+      "name": "obsidian",
+      "display_name": {
+        "en_us": "Obsidian Furnace",
+        "fr_fr": "Fourneau en obsidienne"
+      },
+      "style": {
+        "block": "minecraft:obsidian",
+        "texture": "side"
+      },
+      "required_cooks": 4194304,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:obsidian"
+          }
+        ],
+        "experience_levels": 25
+      },
+      "cook_time": 120,
+      "batch_size": 4
+    },
+    {
+      "level": 10,
+      "name": "netherite",
+      "display_name": {
+        "en_us": "Netherite Furnace",
+        "fr_fr": "Fourneau en netherite"
+      },
+      "style": {
+        "block": "minecraft:netherite_block",
+        "texture": "side"
+      },
+      "required_cooks": 16777216,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:netherite_block"
+          }
+        ],
+        "experience_levels": 30
+      },
+      "cook_time": 110,
+      "batch_size": 8
+    }
+  ]
+}

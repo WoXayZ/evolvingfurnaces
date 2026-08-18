@@ -1,0 +1,6 @@
+{
+  "parent": "evolvingfurnaces:item/furnace",
+  "textures": {
+    "particle": "minecraft:block/blast_furnace_front"
+  }
+}

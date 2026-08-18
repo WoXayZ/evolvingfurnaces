@@ -1,0 +1,6 @@
+{
+  "parent": "evolvingfurnaces:item/furnace",
+  "textures": {
+    "particle": "minecraft:block/smoker_front"
+  }
+}
