@@ -1,5 +1,6 @@
 package com.evolvingfurnaces.compat.jade;
 
+import com.evolvingfurnaces.machine.EvolvingBrewingStandBlock;
 import com.evolvingfurnaces.machine.EvolvingMachineBlock;
 import com.evolvingfurnaces.registry.EFBlocks;
 import snownee.jade.api.IWailaClientRegistration;
@@ -17,6 +18,8 @@ public final class EFJadePlugin implements IWailaPlugin {
         registration.usePickedResult(EFBlocks.FURNACE.get());
         registration.usePickedResult(EFBlocks.BLAST_FURNACE.get());
         registration.usePickedResult(EFBlocks.SMOKER.get());
+        registration.usePickedResult(EFBlocks.BREWING_STAND.get());
         registration.registerBlockComponent(EFJadeNameProvider.INSTANCE, EvolvingMachineBlock.class);
+        registration.registerBlockComponent(EFJadeNameProvider.INSTANCE, EvolvingBrewingStandBlock.class);
     }
 }

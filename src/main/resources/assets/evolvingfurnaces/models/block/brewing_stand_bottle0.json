@@ -1,0 +1,4 @@
+{
+  "parent": "minecraft:block/brewing_stand_bottle0",
+  "render_type": "minecraft:cutout"
+}

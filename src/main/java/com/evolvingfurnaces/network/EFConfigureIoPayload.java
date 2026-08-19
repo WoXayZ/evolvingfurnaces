@@ -1,7 +1,7 @@
 package com.evolvingfurnaces.network;
 
 import com.evolvingfurnaces.EFConstants;
-import com.evolvingfurnaces.machine.EvolvingMachineBlockEntity;
+import com.evolvingfurnaces.machine.EFIoHost;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
@@ -34,7 +34,7 @@ public record EFConfigureIoPayload(BlockPos pos, Direction face) implements Cust
         if (!player.level().isLoaded(payload.pos()) || player.distanceToSqr(payload.pos().getCenter()) > 64.0D) {
             return;
         }
-        if (player.level().getBlockEntity(payload.pos()) instanceof EvolvingMachineBlockEntity machine) {
+        if (player.level().getBlockEntity(payload.pos()) instanceof EFIoHost machine) {
             machine.io().cycle(payload.face());
             machine.setChanged();
             player.level().sendBlockUpdated(payload.pos(), machine.getBlockState(), machine.getBlockState(), 3);

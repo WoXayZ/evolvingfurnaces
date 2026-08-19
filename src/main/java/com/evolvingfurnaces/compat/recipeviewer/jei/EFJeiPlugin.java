@@ -1,6 +1,8 @@
 package com.evolvingfurnaces.compat.recipeviewer.jei;
 
 import com.evolvingfurnaces.EFConstants;
+import com.evolvingfurnaces.EFConfig;
+import com.evolvingfurnaces.client.gui.EvolvingBrewingStandScreen;
 import com.evolvingfurnaces.client.gui.EvolvingMachineScreen;
 import com.evolvingfurnaces.compat.recipeviewer.EFRecipeViewer;
 import com.evolvingfurnaces.machine.EvolvingMachineItem;
@@ -65,6 +67,9 @@ public final class EFJeiPlugin implements IModPlugin {
     public void registerCategories(IRecipeCategoryRegistration registration) {
         IJeiHelpers helpers = registration.getJeiHelpers();
         for (EFMachineKind kind : EFMachineKind.values()) {
+            if (!EFConfig.enabled(kind)) {
+                continue;
+            }
             registration.addRecipeCategories(new EFRecipeViewerJeiCategory(helpers, kind));
         }
     }
@@ -72,6 +77,9 @@ public final class EFJeiPlugin implements IModPlugin {
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
         for (EFMachineKind kind : EFMachineKind.values()) {
+            if (!EFConfig.enabled(kind)) {
+                continue;
+            }
             registration.addRecipes(EFRecipeViewerJeiCategory.type(kind), List.of(kind));
         }
     }
@@ -79,6 +87,9 @@ public final class EFJeiPlugin implements IModPlugin {
     @Override
     public void registerRecipeCatalysts(IRecipeCatalystRegistration registration) {
         for (EFMachineKind kind : EFMachineKind.values()) {
+            if (!EFConfig.enabled(kind)) {
+                continue;
+            }
             for (EFMachineTier tier : EFTierManager.listClient(kind).levels()) {
                 ItemStack stack = EvolvingMachineItem.withLevel(EFItems.item(kind), tier.level());
                 registration.addRecipeCatalyst(stack, EFRecipeViewerJeiCategory.type(kind));
@@ -86,6 +97,7 @@ public final class EFJeiPlugin implements IModPlugin {
                     case FURNACE -> registration.addRecipeCatalyst(stack, RecipeTypes.SMELTING);
                     case BLAST_FURNACE -> registration.addRecipeCatalyst(stack, RecipeTypes.BLASTING);
                     case SMOKER -> registration.addRecipeCatalyst(stack, RecipeTypes.SMOKING);
+                    case BREWING_STAND -> registration.addRecipeCatalyst(stack, RecipeTypes.BREWING);
                 }
             }
         }
@@ -99,6 +111,12 @@ public final class EFJeiPlugin implements IModPlugin {
                 return screen.guiExtraAreas();
             }
         });
+        registration.addGuiContainerHandler(EvolvingBrewingStandScreen.class, new IGuiContainerHandler<>() {
+            @Override
+            public List<Rect2i> getGuiExtraAreas(EvolvingBrewingStandScreen screen) {
+                return screen.guiExtraAreas();
+            }
+        });
     }
 
     public static final class EFRecipeViewerJeiCategory implements IRecipeCategory<EFMachineKind> {
@@ -109,6 +127,8 @@ public final class EFJeiPlugin implements IModPlugin {
                 RecipeType.create(EFConstants.MOD_ID, "blast_furnace_tiers", EFMachineKind.class);
         private static final RecipeType<EFMachineKind> SMOKER =
                 RecipeType.create(EFConstants.MOD_ID, "smoker_tiers", EFMachineKind.class);
+        private static final RecipeType<EFMachineKind> BREWING =
+                RecipeType.create(EFConstants.MOD_ID, "brewing_stand_tiers", EFMachineKind.class);
 
         private final EFMachineKind kind;
         private final IJeiHelpers helpers;
@@ -126,6 +146,7 @@ public final class EFJeiPlugin implements IModPlugin {
                 case FURNACE -> FURNACE;
                 case BLAST_FURNACE -> BLAST;
                 case SMOKER -> SMOKER;
+                case BREWING_STAND -> BREWING;
             };
         }
 

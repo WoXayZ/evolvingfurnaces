@@ -40,9 +40,9 @@ public final class EFMachineTooltips {
                 .orElse(null);
         int required = next == null ? current.requiredCooks() : next.requiredCooks();
         tooltip.add(Component.translatable("evolvingfurnaces.gui.level", current.level()).withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("evolvingfurnaces.gui.cook_time", current.cookTime(), current.cookTime() / 20.0).withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("evolvingfurnaces.gui.batch", current.batchSize()).withStyle(ChatFormatting.GRAY));
-        tooltip.add(Component.translatable("evolvingfurnaces.gui.cooks", cooks, required).withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable(kind.timeLangKey(), current.cookTime(), current.cookTime() / 20.0).withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable(kind.batchLangKey(), current.batchSize()).withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable(kind.progressLangKey(), cooks, required).withStyle(ChatFormatting.GRAY));
         if (next == null) {
             tooltip.add(Component.translatable("evolvingfurnaces.gui.max_level").withStyle(ChatFormatting.GOLD));
         } else {

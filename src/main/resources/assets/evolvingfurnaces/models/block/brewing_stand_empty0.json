@@ -1,0 +1,4 @@
+{
+  "parent": "minecraft:block/brewing_stand_empty0",
+  "render_type": "minecraft:cutout"
+}

@@ -21,24 +21,50 @@ public record EFMachineTier(
             Codec.STRING.optionalFieldOf("name").forGetter(EFMachineTier::name),
             EFDisplayNames.CODEC.fieldOf("display_name").forGetter(EFMachineTier::displayName),
             EFStyleRef.CODEC.fieldOf("style").forGetter(EFMachineTier::style),
-            Codec.INT.fieldOf("required_cooks").forGetter(EFMachineTier::requiredCooks),
+            Codec.INT.optionalFieldOf("required_cooks").forGetter(tier -> Optional.of(tier.requiredCooks)),
+            Codec.INT.optionalFieldOf("required_brews").forGetter(tier -> Optional.empty()),
             EFUpgradeCost.CODEC.fieldOf("upgrade_cost").forGetter(EFMachineTier::upgradeCost),
-            Codec.INT.fieldOf("cook_time").forGetter(EFMachineTier::cookTime),
+            Codec.INT.optionalFieldOf("cook_time").forGetter(tier -> Optional.of(tier.cookTime)),
+            Codec.INT.optionalFieldOf("brew_time").forGetter(tier -> Optional.empty()),
             Codec.INT.fieldOf("batch_size").forGetter(EFMachineTier::batchSize)
-    ).apply(instance, EFMachineTier::new)).flatXmap(EFMachineTier::validate, EFMachineTier::validate);
+    ).apply(instance, EFMachineTier::fromCodec)).flatXmap(EFMachineTier::validate, EFMachineTier::validate);
+
+    private static EFMachineTier fromCodec(
+            int level,
+            Optional<String> name,
+            EFDisplayNames displayName,
+            EFStyleRef style,
+            Optional<Integer> requiredCooks,
+            Optional<Integer> requiredBrews,
+            EFUpgradeCost upgradeCost,
+            Optional<Integer> cookTime,
+            Optional<Integer> brewTime,
+            int batchSize
+    ) {
+        return new EFMachineTier(
+                level,
+                name,
+                displayName,
+                style,
+                requiredCooks.orElseGet(() -> requiredBrews.orElse(-1)),
+                upgradeCost,
+                cookTime.orElseGet(() -> brewTime.orElse(-1)),
+                batchSize
+        );
+    }
 
     private static DataResult<EFMachineTier> validate(EFMachineTier tier) {
         if (tier.level < 1) {
             return DataResult.error(() -> "level must be >= 1, got " + tier.level);
         }
         if (tier.cookTime < 1) {
-            return DataResult.error(() -> "cook_time must be >= 1 at level " + tier.level);
+            return DataResult.error(() -> "cook_time/brew_time must be >= 1 at level " + tier.level);
         }
         if (tier.batchSize < 1) {
             return DataResult.error(() -> "batch_size must be >= 1 at level " + tier.level);
         }
         if (tier.requiredCooks < 0) {
-            return DataResult.error(() -> "required_cooks must be >= 0 at level " + tier.level);
+            return DataResult.error(() -> "required_cooks/required_brews must be >= 0 at level " + tier.level);
         }
         if (tier.upgradeCost.experienceLevels() < 0) {
             return DataResult.error(() -> "experience_levels must be >= 0 at level " + tier.level);

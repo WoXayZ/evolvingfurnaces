@@ -18,5 +18,9 @@ public final class EFCapabilities {
                 Capabilities.ItemHandler.BLOCK,
                 EFBlockEntities.MACHINE.get(),
                 (machine, side) -> machine.handler(side));
+        event.registerBlockEntity(
+                Capabilities.ItemHandler.BLOCK,
+                EFBlockEntities.BREWING_STAND.get(),
+                (machine, side) -> machine.handler(side));
     }
 }

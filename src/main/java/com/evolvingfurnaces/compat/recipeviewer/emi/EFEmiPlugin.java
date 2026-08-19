@@ -1,6 +1,8 @@
 package com.evolvingfurnaces.compat.recipeviewer.emi;
 
 import com.evolvingfurnaces.EFConstants;
+import com.evolvingfurnaces.EFConfig;
+import com.evolvingfurnaces.client.gui.EvolvingBrewingStandScreen;
 import com.evolvingfurnaces.client.gui.EvolvingMachineScreen;
 import com.evolvingfurnaces.compat.recipeviewer.EFRecipeViewer;
 import com.evolvingfurnaces.machine.EvolvingMachineItem;
@@ -35,6 +37,9 @@ public final class EFEmiPlugin implements EmiPlugin {
     @Override
     public void register(EmiRegistry registry) {
         for (EFMachineKind kind : EFMachineKind.values()) {
+            if (!EFConfig.enabled(kind)) {
+                continue;
+            }
             EmiRecipeCategory category = new EmiRecipeCategory(
                     EFConstants.id("recipe_viewer/" + kind.id()),
                     EmiStack.of(EvolvingMachineItem.withLevel(EFItems.item(kind), 1)));
@@ -45,6 +50,11 @@ public final class EFEmiPlugin implements EmiPlugin {
             registry.addRecipe(new EFEmiTierRecipe(kind, category));
         }
         registry.addExclusionArea(EvolvingMachineScreen.class, (screen, consumer) -> {
+            for (Rect2i area : screen.guiExtraAreas()) {
+                consumer.accept(new Bounds(area.getX(), area.getY(), area.getWidth(), area.getHeight()));
+            }
+        });
+        registry.addExclusionArea(EvolvingBrewingStandScreen.class, (screen, consumer) -> {
             for (Rect2i area : screen.guiExtraAreas()) {
                 consumer.accept(new Bounds(area.getX(), area.getY(), area.getWidth(), area.getHeight()));
             }

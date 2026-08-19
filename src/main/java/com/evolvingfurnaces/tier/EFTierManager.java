@@ -62,10 +62,11 @@ public final class EFTierManager {
         }
         serverTiers = copy;
         EvolvingFurnaces.LOGGER.info(
-                "Evolving Furnaces: loaded tiers (furnace={}, blast_furnace={}, smoker={})",
+                "Evolving Furnaces: loaded tiers (furnace={}, blast_furnace={}, smoker={}, brewing_stand={})",
                 copy.get(EFMachineKind.FURNACE).levels().size(),
                 copy.get(EFMachineKind.BLAST_FURNACE).levels().size(),
-                copy.get(EFMachineKind.SMOKER).levels().size());
+                copy.get(EFMachineKind.SMOKER).levels().size(),
+                copy.get(EFMachineKind.BREWING_STAND).levels().size());
     }
 
     public static void replaceClient(Map<EFMachineKind, EFTierList> next) {

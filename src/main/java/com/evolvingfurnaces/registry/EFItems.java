@@ -21,6 +21,9 @@ public final class EFItems {
     public static final DeferredItem<EvolvingMachineItem> SMOKER = ITEMS.register(
             "smoker",
             () -> new EvolvingMachineItem(EFBlocks.SMOKER.get(), new Item.Properties(), EFMachineKind.SMOKER));
+    public static final DeferredItem<EvolvingMachineItem> BREWING_STAND = ITEMS.register(
+            "brewing_stand",
+            () -> new EvolvingMachineItem(EFBlocks.BREWING_STAND.get(), new Item.Properties(), EFMachineKind.BREWING_STAND));
 
     private EFItems() {
     }
@@ -30,6 +33,7 @@ public final class EFItems {
             case FURNACE -> FURNACE.get();
             case BLAST_FURNACE -> BLAST_FURNACE.get();
             case SMOKER -> SMOKER.get();
+            case BREWING_STAND -> BREWING_STAND.get();
         };
     }
 

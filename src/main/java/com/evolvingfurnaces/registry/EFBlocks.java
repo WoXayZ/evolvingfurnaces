@@ -1,6 +1,7 @@
 package com.evolvingfurnaces.registry;
 
 import com.evolvingfurnaces.EFConstants;
+import com.evolvingfurnaces.machine.EvolvingBrewingStandBlock;
 import com.evolvingfurnaces.machine.EvolvingMachineBlock;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import net.minecraft.world.level.block.Block;
@@ -25,6 +26,9 @@ public final class EFBlocks {
     public static final DeferredBlock<EvolvingMachineBlock> SMOKER = BLOCKS.register(
             "smoker",
             () -> new EvolvingMachineBlock(furnaceProperties(), EFMachineKind.SMOKER));
+    public static final DeferredBlock<EvolvingBrewingStandBlock> BREWING_STAND = BLOCKS.register(
+            "brewing_stand",
+            () -> new EvolvingBrewingStandBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.BREWING_STAND)));
 
     private EFBlocks() {
     }
@@ -35,11 +39,12 @@ public final class EFBlocks {
                 .sound(SoundType.STONE);
     }
 
-    public static EvolvingMachineBlock block(EFMachineKind kind) {
+    public static Block block(EFMachineKind kind) {
         return switch (kind) {
             case FURNACE -> FURNACE.get();
             case BLAST_FURNACE -> BLAST_FURNACE.get();
             case SMOKER -> SMOKER.get();
+            case BREWING_STAND -> BREWING_STAND.get();
         };
     }
 

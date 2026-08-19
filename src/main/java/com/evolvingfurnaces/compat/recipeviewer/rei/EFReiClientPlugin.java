@@ -1,6 +1,8 @@
 package com.evolvingfurnaces.compat.recipeviewer.rei;
 
 import com.evolvingfurnaces.EFConstants;
+import com.evolvingfurnaces.EFConfig;
+import com.evolvingfurnaces.client.gui.EvolvingBrewingStandScreen;
 import com.evolvingfurnaces.client.gui.EvolvingMachineScreen;
 import com.evolvingfurnaces.compat.recipeviewer.EFRecipeViewer;
 import com.evolvingfurnaces.machine.EvolvingMachineItem;
@@ -40,6 +42,9 @@ public final class EFReiClientPlugin implements REIClientPlugin {
     @Override
     public void registerCategories(CategoryRegistry registry) {
         for (EFMachineKind kind : EFMachineKind.values()) {
+            if (!EFConfig.enabled(kind)) {
+                continue;
+            }
             registry.add(new EFRecipeViewerReiCategory(kind));
             for (EFMachineTier tier : EFTierManager.listClient(kind).levels()) {
                 ItemStack stack = EvolvingMachineItem.withLevel(EFItems.item(kind), tier.level());
@@ -51,6 +56,9 @@ public final class EFReiClientPlugin implements REIClientPlugin {
     @Override
     public void registerDisplays(DisplayRegistry registry) {
         for (EFMachineKind kind : EFMachineKind.values()) {
+            if (!EFConfig.enabled(kind)) {
+                continue;
+            }
             registry.add(new EFRecipeViewerReiDisplay(kind));
         }
     }
@@ -58,6 +66,13 @@ public final class EFReiClientPlugin implements REIClientPlugin {
     @Override
     public void registerExclusionZones(ExclusionZones zones) {
         zones.register(EvolvingMachineScreen.class, screen -> {
+            List<Rectangle> areas = new ArrayList<>();
+            for (var area : screen.guiExtraAreas()) {
+                areas.add(new Rectangle(area.getX(), area.getY(), area.getWidth(), area.getHeight()));
+            }
+            return areas;
+        });
+        zones.register(EvolvingBrewingStandScreen.class, screen -> {
             List<Rectangle> areas = new ArrayList<>();
             for (var area : screen.guiExtraAreas()) {
                 areas.add(new Rectangle(area.getX(), area.getY(), area.getWidth(), area.getHeight()));

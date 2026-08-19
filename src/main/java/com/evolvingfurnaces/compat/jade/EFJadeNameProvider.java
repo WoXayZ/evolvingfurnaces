@@ -1,6 +1,7 @@
 package com.evolvingfurnaces.compat.jade;
 
 import com.evolvingfurnaces.EFConstants;
+import com.evolvingfurnaces.machine.EvolvingBrewingStandBlockEntity;
 import com.evolvingfurnaces.machine.EvolvingMachineBlockEntity;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -18,10 +19,14 @@ public enum EFJadeNameProvider implements IBlockComponentProvider {
 
     @Override
     public void appendTooltip(ITooltip tooltip, BlockAccessor accessor, IPluginConfig config) {
-        if (!(accessor.getBlockEntity() instanceof EvolvingMachineBlockEntity machine)) {
+        Component name;
+        if (accessor.getBlockEntity() instanceof EvolvingMachineBlockEntity machine) {
+            name = IThemeHelper.get().title(machine.getDisplayName());
+        } else if (accessor.getBlockEntity() instanceof EvolvingBrewingStandBlockEntity brewing) {
+            name = IThemeHelper.get().title(brewing.getDisplayName());
+        } else {
             return;
         }
-        Component name = IThemeHelper.get().title(machine.getDisplayName());
         tooltip.remove(JadeIds.CORE_OBJECT_NAME);
         tooltip.add(0, IElementHelper.get().text(name).tag(JadeIds.CORE_OBJECT_NAME));
     }

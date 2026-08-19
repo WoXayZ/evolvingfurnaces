@@ -77,6 +77,7 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
             case FURNACE -> new SmeltingRecipeBookComponent();
             case BLAST_FURNACE -> new BlastingRecipeBookComponent();
             case SMOKER -> new SmokingRecipeBookComponent();
+            case BREWING_STAND -> new SmeltingRecipeBookComponent();
         };
     }
 

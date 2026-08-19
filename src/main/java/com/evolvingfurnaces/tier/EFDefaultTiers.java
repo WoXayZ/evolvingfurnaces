@@ -34,8 +34,10 @@ public final class EFDefaultTiers {
             "minecraft:netherite_block"
     };
     private static final int[] COOK_FURNACE = {200, 190, 180, 170, 160, 150, 140, 130, 120, 110};
+    private static final int[] BREW_TIME = {400, 380, 360, 340, 320, 300, 280, 260, 240, 220};
     private static final int[] BATCH = {1, 1, 1, 2, 2, 2, 4, 4, 4, 8};
     private static final int[] REQUIRED_COOKS = {0, 256, 1024, 4096, 16384, 65536, 262144, 1048576, 4194304, 16777216};
+    private static final int[] REQUIRED_BREWS = {0, 30, 120, 480, 1920, 7680, 30720, 122880, 491520, 1966080};
     private static final int[] XP = {2, 5, 8, 10, 12, 15, 18, 20, 25, 30};
 
     public static Map<EFMachineKind, EFTierList> all() {
@@ -49,10 +51,12 @@ public final class EFDefaultTiers {
     public static EFTierList forKind(EFMachineKind kind) {
         EFMachineTier[] tiers = new EFMachineTier[NAMES.length];
         for (int i = 0; i < NAMES.length; i++) {
-            int cookTime = switch (kind) {
+            int processTime = switch (kind) {
                 case FURNACE -> COOK_FURNACE[i];
                 case BLAST_FURNACE, SMOKER -> COOK_FURNACE[i] / 2;
+                case BREWING_STAND -> BREW_TIME[i];
             };
+            int required = kind == EFMachineKind.BREWING_STAND ? REQUIRED_BREWS[i] : REQUIRED_COOKS[i];
             String enName;
             String frName;
             switch (kind) {
@@ -68,6 +72,10 @@ public final class EFDefaultTiers {
                     enName = EN_ADJ[i] + " Smoker";
                     frName = "Fumoir en " + FR_ADJ[i];
                 }
+                case BREWING_STAND -> {
+                    enName = EN_ADJ[i] + " Brewing Stand";
+                    frName = "Stand d'alchimie en " + FR_ADJ[i];
+                }
                 default -> {
                     enName = EN_ADJ[i];
                     frName = FR_ADJ[i];
@@ -81,9 +89,9 @@ public final class EFDefaultTiers {
                     Optional.of(NAMES[i]),
                     new EFDisplayNames(names),
                     new EFStyleRef(ResourceLocation.parse(BLOCKS[i]), EFTextureFace.SIDE),
-                    REQUIRED_COOKS[i],
+                    required,
                     new EFUpgradeCost(List.of(EFCostIngredient.item(BLOCKS[i], 8)), XP[i]),
-                    cookTime,
+                    processTime,
                     BATCH[i]
             );
         }

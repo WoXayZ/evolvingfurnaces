@@ -1,14 +1,19 @@
 package com.evolvingfurnaces.client;
 
 import com.evolvingfurnaces.EFConstants;
+import com.evolvingfurnaces.client.gui.EvolvingBrewingStandScreen;
 import com.evolvingfurnaces.client.gui.EvolvingMachineScreen;
+import com.evolvingfurnaces.client.render.EvolvingBrewingStandRenderer;
 import com.evolvingfurnaces.client.render.EvolvingMachineItemRenderer;
 import com.evolvingfurnaces.client.render.EvolvingMachineRenderer;
 import com.evolvingfurnaces.client.render.EFMachineTextureCompositor;
 import com.evolvingfurnaces.registry.EFBlockEntities;
+import com.evolvingfurnaces.registry.EFBlocks;
 import com.evolvingfurnaces.registry.EFItems;
 import com.evolvingfurnaces.registry.EFMenus;
 import net.minecraft.client.renderer.BlockEntityWithoutLevelRenderer;
+import net.minecraft.client.renderer.ItemBlockRenderTypes;
+import net.minecraft.client.renderer.RenderType;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
@@ -30,16 +35,19 @@ public final class EFClient {
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
         NeoForge.EVENT_BUS.addListener(EFClientGui::onScreenInit);
+        event.enqueueWork(() -> ItemBlockRenderTypes.setRenderLayer(EFBlocks.BREWING_STAND.get(), RenderType.cutout()));
     }
 
     @SubscribeEvent
     public static void registerScreens(RegisterMenuScreensEvent event) {
         event.register(EFMenus.MACHINE.get(), EvolvingMachineScreen::new);
+        event.register(EFMenus.BREWING_STAND.get(), EvolvingBrewingStandScreen::new);
     }
 
     @SubscribeEvent
     public static void registerRenderers(EntityRenderersEvent.RegisterRenderers event) {
         event.registerBlockEntityRenderer(EFBlockEntities.MACHINE.get(), EvolvingMachineRenderer::new);
+        event.registerBlockEntityRenderer(EFBlockEntities.BREWING_STAND.get(), EvolvingBrewingStandRenderer::new);
     }
 
     @SubscribeEvent
@@ -50,7 +58,7 @@ public final class EFClient {
                 return EvolvingMachineItemRenderer.instance();
             }
         };
-        event.registerItem(extensions, EFItems.FURNACE.get(), EFItems.BLAST_FURNACE.get(), EFItems.SMOKER.get());
+        event.registerItem(extensions, EFItems.FURNACE.get(), EFItems.BLAST_FURNACE.get(), EFItems.SMOKER.get(), EFItems.BREWING_STAND.get());
     }
 
     @SubscribeEvent

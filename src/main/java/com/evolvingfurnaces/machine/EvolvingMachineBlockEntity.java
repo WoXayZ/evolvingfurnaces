@@ -46,7 +46,7 @@ import net.neoforged.neoforge.items.IItemHandler;
 import org.jetbrains.annotations.Nullable;
 
 public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
-        implements WorldlyContainer, RecipeCraftingHolder, StackedContentsCompatible {
+        implements WorldlyContainer, RecipeCraftingHolder, StackedContentsCompatible, EFIoHost {
 
     public static final int SLOT_INPUT = 0;
     public static final int SLOT_FUEL = 1;
@@ -71,6 +71,7 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     private int cachedCookTime = 200;
     private int cachedBatchSize = 1;
     private boolean saveThisTick;
+    private boolean convertingToVanilla;
     @Nullable
     private Item cycleInputItem;
     private final Object2IntOpenHashMap<ResourceLocation> recipesUsed = new Object2IntOpenHashMap<>();
@@ -149,6 +150,14 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         return io;
     }
 
+    public void markConvertingToVanilla() {
+        convertingToVanilla = true;
+    }
+
+    public boolean convertingToVanilla() {
+        return convertingToVanilla;
+    }
+
     public ContainerData dataAccess() {
         return dataAccess;
     }
@@ -182,6 +191,9 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
      * A netherite furnace with batch 8 is one vanilla smelt's worth of work, then {@code grow(8)}.
      */
     public static void serverTick(Level level, BlockPos pos, BlockState state, EvolvingMachineBlockEntity machine) {
+        if (level instanceof ServerLevel server && EFDisableConverter.convertIfDisabled(server, pos, machine)) {
+            return;
+        }
         boolean wasLit = machine.isLit();
         boolean changed = false;
         if (wasLit) {

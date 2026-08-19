@@ -86,7 +86,8 @@ public class EvolvingMachineBlock extends AbstractFurnaceBlock {
     @Override
     protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock()) && level instanceof ServerLevel serverLevel
-                && level.getBlockEntity(pos) instanceof EvolvingMachineBlockEntity machine) {
+                && level.getBlockEntity(pos) instanceof EvolvingMachineBlockEntity machine
+                && !machine.convertingToVanilla()) {
             machine.awardRecipesAndPopExperience(serverLevel, Vec3.atCenterOf(pos));
         }
         super.onRemove(state, level, pos, newState, movedByPiston);

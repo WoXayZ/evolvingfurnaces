@@ -2,6 +2,7 @@
   "block.evolvingfurnaces.furnace": "Fourneau évolutif",
   "block.evolvingfurnaces.blast_furnace": "Haut-fourneau évolutif",
   "block.evolvingfurnaces.smoker": "Fumoir évolutif",
+  "block.evolvingfurnaces.brewing_stand": "Stand d'alchimie évolutif",
   "itemGroup.evolvingfurnaces": "Evolving Furnaces",
   "evolvingfurnaces.gui.upgrade": "Améliorer",
   "evolvingfurnaces.gui.upgrade_ready": "Prêt à améliorer",
@@ -11,8 +12,11 @@
   "evolvingfurnaces.gui.max_level": "NIVEAU MAX",
   "evolvingfurnaces.gui.level": "Niveau : %s",
   "evolvingfurnaces.gui.cook_time": "Temps de cuisson : %s ticks (%.2fs)",
+  "evolvingfurnaces.gui.brew_time": "Temps d'alchimie : %s ticks (%.2fs)",
   "evolvingfurnaces.gui.batch": "Taille de lot : %s",
+  "evolvingfurnaces.gui.potions_per_slot": "Potions par emplacement : %s",
   "evolvingfurnaces.gui.cooks": "Cuissons : %s / %s",
+  "evolvingfurnaces.gui.brews": "Potions brassées : %s / %s",
   "evolvingfurnaces.gui.cooks_short": "%s / %s",
   "evolvingfurnaces.gui.next": "Suivant : %s",
   "evolvingfurnaces.gui.xp_cost": "Niveaux d'XP : %s",
@@ -29,6 +33,7 @@
   "evolvingfurnaces.recipe_viewer.title.furnace": "Fourneau évolutif",
   "evolvingfurnaces.recipe_viewer.title.blast_furnace": "Haut-fourneau évolutif",
   "evolvingfurnaces.recipe_viewer.title.smoker": "Fumoir évolutif",
+  "evolvingfurnaces.recipe_viewer.title.brewing_stand": "Stand d'alchimie évolutif",
   "evolvingfurnaces.recipe_viewer.level": "NIVEAU %s",
   "config.jade.plugin_evolvingfurnaces.machine_name": "Nom de la machine"
 }

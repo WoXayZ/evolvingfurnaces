@@ -42,8 +42,14 @@ public class EvolvingMachineItemRenderer extends BlockEntityWithoutLevelRenderer
             return;
         }
         EFMachineKind kind = item.kind();
-        BlockState state = EFBlocks.block(kind).defaultBlockState().setValue(AbstractFurnaceBlock.FACING, Direction.NORTH);
         int light = packedLight == 0 ? LightTexture.FULL_BRIGHT : packedLight;
+        if (kind == EFMachineKind.BREWING_STAND) {
+            BlockState state = EFBlocks.block(kind).defaultBlockState();
+            Minecraft.getInstance().getBlockRenderer().renderSingleBlock(state, poseStack, buffers, light, packedOverlay);
+            EvolvingBrewingStandRenderer.renderBase(EvolvingMachineItem.levelOf(stack), poseStack, buffers, light, packedOverlay);
+            return;
+        }
+        BlockState state = EFBlocks.block(kind).defaultBlockState().setValue(AbstractFurnaceBlock.FACING, Direction.NORTH);
         Minecraft.getInstance().getBlockRenderer().renderSingleBlock(state, poseStack, buffers, light, packedOverlay);
         EvolvingMachineRenderer.renderOverlay(kind, EvolvingMachineItem.levelOf(stack), state, poseStack, buffers, light, packedOverlay);
     }

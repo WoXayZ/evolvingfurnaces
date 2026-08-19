@@ -1,0 +1,244 @@
+{
+  "levels": [
+    {
+      "level": 1,
+      "name": "copper",
+      "display_name": {
+        "en_us": "Copper Brewing Stand",
+        "fr_fr": "Stand d'alchimie en cuivre"
+      },
+      "style": {
+        "block": "minecraft:copper_block",
+        "texture": "side"
+      },
+      "required_brews": 0,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:copper_block"
+          }
+        ],
+        "experience_levels": 2
+      },
+      "brew_time": 400,
+      "batch_size": 1
+    },
+    {
+      "level": 2,
+      "name": "amethyst",
+      "display_name": {
+        "en_us": "Amethyst Brewing Stand",
+        "fr_fr": "Stand d'alchimie en améthyste"
+      },
+      "style": {
+        "block": "minecraft:amethyst_block",
+        "texture": "side"
+      },
+      "required_brews": 30,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:amethyst_block"
+          }
+        ],
+        "experience_levels": 5
+      },
+      "brew_time": 380,
+      "batch_size": 1
+    },
+    {
+      "level": 3,
+      "name": "iron",
+      "display_name": {
+        "en_us": "Iron Brewing Stand",
+        "fr_fr": "Stand d'alchimie en fer"
+      },
+      "style": {
+        "block": "minecraft:iron_block",
+        "texture": "side"
+      },
+      "required_brews": 120,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:iron_block"
+          }
+        ],
+        "experience_levels": 8
+      },
+      "brew_time": 360,
+      "batch_size": 1
+    },
+    {
+      "level": 4,
+      "name": "lapis",
+      "display_name": {
+        "en_us": "Lapis Lazuli Brewing Stand",
+        "fr_fr": "Stand d'alchimie en lapis-lazuli"
+      },
+      "style": {
+        "block": "minecraft:lapis_block",
+        "texture": "side"
+      },
+      "required_brews": 480,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:lapis_block"
+          }
+        ],
+        "experience_levels": 10
+      },
+      "brew_time": 340,
+      "batch_size": 2
+    },
+    {
+      "level": 5,
+      "name": "redstone",
+      "display_name": {
+        "en_us": "Redstone Brewing Stand",
+        "fr_fr": "Stand d'alchimie en redstone"
+      },
+      "style": {
+        "block": "minecraft:redstone_block",
+        "texture": "side"
+      },
+      "required_brews": 1920,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:redstone_block"
+          }
+        ],
+        "experience_levels": 12
+      },
+      "brew_time": 320,
+      "batch_size": 2
+    },
+    {
+      "level": 6,
+      "name": "gold",
+      "display_name": {
+        "en_us": "Gold Brewing Stand",
+        "fr_fr": "Stand d'alchimie en or"
+      },
+      "style": {
+        "block": "minecraft:gold_block",
+        "texture": "side"
+      },
+      "required_brews": 7680,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:gold_block"
+          }
+        ],
+        "experience_levels": 15
+      },
+      "brew_time": 300,
+      "batch_size": 2
+    },
+    {
+      "level": 7,
+      "name": "diamond",
+      "display_name": {
+        "en_us": "Diamond Brewing Stand",
+        "fr_fr": "Stand d'alchimie en diamant"
+      },
+      "style": {
+        "block": "minecraft:diamond_block",
+        "texture": "side"
+      },
+      "required_brews": 30720,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:diamond_block"
+          }
+        ],
+        "experience_levels": 18
+      },
+      "brew_time": 280,
+      "batch_size": 4
+    },
+    {
+      "level": 8,
+      "name": "emerald",
+      "display_name": {
+        "en_us": "Emerald Brewing Stand",
+        "fr_fr": "Stand d'alchimie en émeraude"
+      },
+      "style": {
+        "block": "minecraft:emerald_block",
+        "texture": "side"
+      },
+      "required_brews": 122880,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:emerald_block"
+          }
+        ],
+        "experience_levels": 20
+      },
+      "brew_time": 260,
+      "batch_size": 4
+    },
+    {
+      "level": 9,
+      "name": "obsidian",
+      "display_name": {
+        "en_us": "Obsidian Brewing Stand",
+        "fr_fr": "Stand d'alchimie en obsidienne"
+      },
+      "style": {
+        "block": "minecraft:obsidian",
+        "texture": "side"
+      },
+      "required_brews": 491520,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:obsidian"
+          }
+        ],
+        "experience_levels": 25
+      },
+      "brew_time": 240,
+      "batch_size": 4
+    },
+    {
+      "level": 10,
+      "name": "netherite",
+      "display_name": {
+        "en_us": "Netherite Brewing Stand",
+        "fr_fr": "Stand d'alchimie en netherite"
+      },
+      "style": {
+        "block": "minecraft:netherite_block",
+        "texture": "side"
+      },
+      "required_brews": 1966080,
+      "upgrade_cost": {
+        "items": [
+          {
+            "count": 8,
+            "item": "minecraft:netherite_block"
+          }
+        ],
+        "experience_levels": 30
+      },
+      "brew_time": 220,
+      "batch_size": 8
+    }
+  ]
+}

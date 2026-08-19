@@ -1,6 +1,7 @@
 package com.evolvingfurnaces.registry;
 
 import com.evolvingfurnaces.EFConstants;
+import com.evolvingfurnaces.EFConfig;
 import com.evolvingfurnaces.machine.EvolvingMachineItem;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import com.evolvingfurnaces.tier.EFMachineTier;
@@ -24,6 +25,9 @@ public final class EFCreativeTabs {
                     .icon(() -> EvolvingMachineItem.withLevel(EFItems.FURNACE.get(), 1))
                     .displayItems((params, output) -> {
                         for (EFMachineKind kind : EFMachineKind.values()) {
+                            if (!EFConfig.enabled(kind)) {
+                                continue;
+                            }
                             for (EFMachineTier tier : EFTierManager.listClient(kind).levels()) {
                                 output.accept(EvolvingMachineItem.withLevel(EFItems.item(kind), tier.level()));
                             }

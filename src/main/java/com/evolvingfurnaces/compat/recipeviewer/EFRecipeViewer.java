@@ -138,9 +138,9 @@ public final class EFRecipeViewer {
         Component level = Component.translatable("evolvingfurnaces.recipe_viewer.level", tier.level());
         graphics.drawString(font, level, 80 - font.width(level) / 2, 10, 0x404040, false);
         graphics.drawString(font, tier.displayName().toComponent(), 8, 28, 0x404040, false);
-        graphics.drawString(font, Component.translatable("evolvingfurnaces.gui.cook_time", tier.cookTime(), tier.cookTime() / 20.0), 8, 42, 0x404040, false);
-        graphics.drawString(font, Component.translatable("evolvingfurnaces.gui.batch", tier.batchSize()), 8, 54, 0x404040, false);
-        graphics.drawString(font, Component.translatable("evolvingfurnaces.gui.cooks", 0, tier.requiredCooks()), 8, 66, 0x404040, false);
+        graphics.drawString(font, Component.translatable(kind.timeLangKey(), tier.cookTime(), tier.cookTime() / 20.0), 8, 42, 0x404040, false);
+        graphics.drawString(font, Component.translatable(kind.batchLangKey(), tier.batchSize()), 8, 54, 0x404040, false);
+        graphics.drawString(font, Component.translatable(kind.progressLangKey(), 0, tier.requiredCooks()), 8, 66, 0x404040, false);
         graphics.drawString(font, Component.translatable("evolvingfurnaces.gui.xp_cost", tier.upgradeCost().experienceLevels()), 8, 78, 0x404040, false);
         int x = COST_X;
         for (var cost : tier.upgradeCost().items()) {

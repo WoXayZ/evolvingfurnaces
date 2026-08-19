@@ -3,6 +3,7 @@
   "values": [
     "evolvingfurnaces:furnace",
     "evolvingfurnaces:blast_furnace",
-    "evolvingfurnaces:smoker"
+    "evolvingfurnaces:smoker",
+    "evolvingfurnaces:brewing_stand"
   ]
 }

@@ -1,6 +1,7 @@
 package com.evolvingfurnaces.registry;
 
 import com.evolvingfurnaces.EFConstants;
+import com.evolvingfurnaces.machine.EvolvingBrewingStandMenu;
 import com.evolvingfurnaces.machine.EvolvingMachineMenu;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.inventory.MenuType;
@@ -15,6 +16,8 @@ public final class EFMenus {
 
     public static final DeferredHolder<MenuType<?>, MenuType<EvolvingMachineMenu>> MACHINE =
             MENUS.register("machine", () -> IMenuTypeExtension.create(EvolvingMachineMenu::new));
+    public static final DeferredHolder<MenuType<?>, MenuType<EvolvingBrewingStandMenu>> BREWING_STAND =
+            MENUS.register("brewing_stand", () -> IMenuTypeExtension.create(EvolvingBrewingStandMenu::new));
 
     private EFMenus() {
     }

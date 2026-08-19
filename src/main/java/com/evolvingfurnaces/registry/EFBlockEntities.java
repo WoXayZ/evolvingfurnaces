@@ -1,6 +1,7 @@
 package com.evolvingfurnaces.registry;
 
 import com.evolvingfurnaces.EFConstants;
+import com.evolvingfurnaces.machine.EvolvingBrewingStandBlockEntity;
 import com.evolvingfurnaces.machine.EvolvingMachineBlockEntity;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
@@ -19,6 +20,12 @@ public final class EFBlockEntities {
                     EFBlocks.FURNACE.get(),
                     EFBlocks.BLAST_FURNACE.get(),
                     EFBlocks.SMOKER.get()
+            ).build(null));
+
+    public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<EvolvingBrewingStandBlockEntity>> BREWING_STAND =
+            BLOCK_ENTITIES.register("brewing_stand", () -> BlockEntityType.Builder.of(
+                    EvolvingBrewingStandBlockEntity::new,
+                    EFBlocks.BREWING_STAND.get()
             ).build(null));
 
     private EFBlockEntities() {
