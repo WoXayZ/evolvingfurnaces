@@ -10,6 +10,7 @@
   "evolvingfurnaces.gui.io": "Side configuration",
   "evolvingfurnaces.gui.io_config": "IO Config",
   "evolvingfurnaces.gui.max_level": "MAX LEVEL",
+  "evolvingfurnaces.gui.vanilla": "Vanilla",
   "evolvingfurnaces.gui.level": "Level: %s",
   "evolvingfurnaces.gui.cook_time": "Cook time: %s ticks (%.2fs)",
   "evolvingfurnaces.gui.brew_time": "Brew time: %s ticks (%.2fs)",

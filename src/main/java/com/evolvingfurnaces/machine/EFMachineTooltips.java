@@ -29,6 +29,10 @@ public final class EFMachineTooltips {
     }
 
     public static void append(List<Component> tooltip, EFMachineKind kind, int level, int cooks, @Nullable Player player) {
+        if (level < 1) {
+            appendVanilla(tooltip, kind, player);
+            return;
+        }
         EFMachineTier current = EFTierManager.tierClient(kind, level)
                 .or(() -> EFTierManager.tier(kind, level))
                 .orElse(null);
@@ -51,6 +55,23 @@ public final class EFMachineTooltips {
             for (EFCostIngredient cost : next.upgradeCost().items()) {
                 tooltip.add(Component.literal("- " + cost.count() + " ").append(costLabel(cost)).withStyle(ChatFormatting.DARK_GRAY));
             }
+        }
+    }
+
+    private static void appendVanilla(List<Component> tooltip, EFMachineKind kind, @Nullable Player player) {
+        EFMachineTier next = EFTierManager.nextClient(kind, 0)
+                .or(() -> EFTierManager.next(kind, 0))
+                .orElse(null);
+        if (next == null) {
+            return;
+        }
+        tooltip.add(Component.translatable("evolvingfurnaces.gui.vanilla").withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable("evolvingfurnaces.gui.next", next.displayName().resolveForPlayer(player)).withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable(kind.timeLangKey(), next.cookTime(), next.cookTime() / 20.0).withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable(kind.batchLangKey(), next.batchSize()).withStyle(ChatFormatting.GRAY));
+        tooltip.add(Component.translatable("evolvingfurnaces.gui.xp_cost", next.upgradeCost().experienceLevels()).withStyle(ChatFormatting.GRAY));
+        for (EFCostIngredient cost : next.upgradeCost().items()) {
+            tooltip.add(Component.literal("- " + cost.count() + " ").append(costLabel(cost)).withStyle(ChatFormatting.DARK_GRAY));
         }
     }
 

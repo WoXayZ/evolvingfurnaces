@@ -2,6 +2,7 @@ package com.evolvingfurnaces.compat.recipeviewer.emi;
 
 import com.evolvingfurnaces.EFConstants;
 import com.evolvingfurnaces.EFConfig;
+import com.evolvingfurnaces.client.gui.EFVanillaInfoOverlay;
 import com.evolvingfurnaces.client.gui.EvolvingBrewingStandScreen;
 import com.evolvingfurnaces.client.gui.EvolvingMachineScreen;
 import com.evolvingfurnaces.compat.recipeviewer.EFRecipeViewer;
@@ -21,8 +22,14 @@ import dev.emi.emi.api.widget.Bounds;
 import dev.emi.emi.api.widget.Widget;
 import dev.emi.emi.api.widget.WidgetHolder;
 import java.util.List;
+import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.BlastFurnaceScreen;
+import net.minecraft.client.gui.screens.inventory.BrewingStandScreen;
+import net.minecraft.client.gui.screens.inventory.FurnaceScreen;
+import net.minecraft.client.gui.screens.inventory.SmokerScreen;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.resources.ResourceLocation;
@@ -59,6 +66,16 @@ public final class EFEmiPlugin implements EmiPlugin {
                 consumer.accept(new Bounds(area.getX(), area.getY(), area.getWidth(), area.getHeight()));
             }
         });
+        registry.addExclusionArea(FurnaceScreen.class, EFEmiPlugin::vanillaExclusion);
+        registry.addExclusionArea(BlastFurnaceScreen.class, EFEmiPlugin::vanillaExclusion);
+        registry.addExclusionArea(SmokerScreen.class, EFEmiPlugin::vanillaExclusion);
+        registry.addExclusionArea(BrewingStandScreen.class, EFEmiPlugin::vanillaExclusion);
+    }
+
+    private static void vanillaExclusion(AbstractContainerScreen<?> screen, Consumer<Bounds> consumer) {
+        for (Rect2i area : EFVanillaInfoOverlay.extraAreas(screen)) {
+            consumer.accept(new Bounds(area.getX(), area.getY(), area.getWidth(), area.getHeight()));
+        }
     }
 
     private record EFEmiTierRecipe(EFMachineKind kind, EmiRecipeCategory category) implements EmiRecipe {

@@ -2,6 +2,8 @@ package com.evolvingfurnaces.client;
 
 import com.evolvingfurnaces.EFConfig;
 import com.evolvingfurnaces.client.gui.EFVanillaBrewingUpgradeButton;
+import com.evolvingfurnaces.client.gui.EFVanillaInfoButton;
+import com.evolvingfurnaces.client.gui.EFVanillaInfoOverlay;
 import com.evolvingfurnaces.client.gui.EFVanillaUpgradeButton;
 import com.evolvingfurnaces.client.gui.EvolvingMachineScreen;
 import com.evolvingfurnaces.tier.EFMachineKind;
@@ -42,7 +44,19 @@ public final class EFClientGui {
         if (pos == null) {
             return;
         }
+        EFVanillaInfoOverlay.attach(screen, kind);
+        event.addListener(new EFVanillaInfoButton(screen));
         event.addListener(new EFVanillaUpgradeButton(screen, pos, kind));
+    }
+
+    public static void onScreenRender(ScreenEvent.Render.Post event) {
+        EFVanillaInfoOverlay.render(event.getScreen(), event.getGuiGraphics(), event.getMouseX(), event.getMouseY());
+    }
+
+    public static void onMousePressed(ScreenEvent.MouseButtonPressed.Pre event) {
+        if (event.getButton() == 0 && EFVanillaInfoOverlay.consumeClick(event.getScreen(), event.getMouseX(), event.getMouseY())) {
+            event.setCanceled(true);
+        }
     }
 
     private static void addBrewingButton(ScreenEvent.Init.Post event, BrewingStandScreen screen) {
@@ -54,6 +68,8 @@ public final class EFClientGui {
         if (pos == null) {
             return;
         }
+        EFVanillaInfoOverlay.attach(screen, EFMachineKind.BREWING_STAND);
+        event.addListener(new EFVanillaInfoButton(screen));
         event.addListener(new EFVanillaBrewingUpgradeButton(screen, pos));
     }
 

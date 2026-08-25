@@ -1,7 +1,7 @@
 # Evolving Furnaces
 
 Upgrade vanilla furnaces, blast furnaces, smokers and brewing stands through data-driven tiers.
-Minecraft **1.21.1** / **NeoForge 21.1.248**. Version **1.1**.
+Minecraft **1.21.1** / **NeoForge 21.1.248**. Version **1.2**.
 
 Vanilla machines stay vanilla. You upgrade one in place into a Copper machine (level 1), then keep going. Each tier can change processing time, batch size, the visual style, and the upgrade cost.
 
@@ -12,13 +12,15 @@ The GUI is in English and French. Machine names come from the JSON (`display_nam
 ## How it works
 
 1. Place a furnace, blast furnace, smoker or brewing stand.
-2. Open it. If you have the items and XP for the next tier, the upgrade button lights up.
+2. Open it. The **Info** button shows the first upgrade cost. If you have the items and XP, the **Upgrade** button lights up.
 3. Click it. The block is replaced in place, inventory included.
 
 From level 1 you also get:
 
 - an **Info** panel: current stats, progression toward the next tier, next cost
 - a side **IO** panel for hoppers and pipes (no auto-eject)
+
+Vanilla machines get Info and Upgrade only, not IO.
 
 Default IO:
 
@@ -51,7 +53,7 @@ enabled = true
 Disabling a machine:
 
 - hides it from creative and JEI / EMI / REI
-- removes the upgrade button on the vanilla GUI
+- removes the upgrade and info buttons on the vanilla GUI
 - ignores that machine's datapack progression
 - converts already placed Evolving blocks back to vanilla on load (contents kept; tier, progression and IO are lost)
 - never changes the vanilla block of the same type

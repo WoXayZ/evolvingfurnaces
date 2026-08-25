@@ -35,6 +35,8 @@ public final class EFClient {
     @SubscribeEvent
     public static void onClientSetup(FMLClientSetupEvent event) {
         NeoForge.EVENT_BUS.addListener(EFClientGui::onScreenInit);
+        NeoForge.EVENT_BUS.addListener(EFClientGui::onScreenRender);
+        NeoForge.EVENT_BUS.addListener(EFClientGui::onMousePressed);
         event.enqueueWork(() -> ItemBlockRenderTypes.setRenderLayer(EFBlocks.BREWING_STAND.get(), RenderType.cutout()));
     }
 

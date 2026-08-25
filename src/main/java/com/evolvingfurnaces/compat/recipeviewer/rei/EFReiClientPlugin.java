@@ -2,6 +2,7 @@ package com.evolvingfurnaces.compat.recipeviewer.rei;
 
 import com.evolvingfurnaces.EFConstants;
 import com.evolvingfurnaces.EFConfig;
+import com.evolvingfurnaces.client.gui.EFVanillaInfoOverlay;
 import com.evolvingfurnaces.client.gui.EvolvingBrewingStandScreen;
 import com.evolvingfurnaces.client.gui.EvolvingMachineScreen;
 import com.evolvingfurnaces.compat.recipeviewer.EFRecipeViewer;
@@ -33,6 +34,11 @@ import me.shedaniel.rei.forge.REIPluginClient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.BlastFurnaceScreen;
+import net.minecraft.client.gui.screens.inventory.BrewingStandScreen;
+import net.minecraft.client.gui.screens.inventory.FurnaceScreen;
+import net.minecraft.client.gui.screens.inventory.SmokerScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 
@@ -79,6 +85,18 @@ public final class EFReiClientPlugin implements REIClientPlugin {
             }
             return areas;
         });
+        zones.register(FurnaceScreen.class, EFReiClientPlugin::vanillaZones);
+        zones.register(BlastFurnaceScreen.class, EFReiClientPlugin::vanillaZones);
+        zones.register(SmokerScreen.class, EFReiClientPlugin::vanillaZones);
+        zones.register(BrewingStandScreen.class, EFReiClientPlugin::vanillaZones);
+    }
+
+    private static List<Rectangle> vanillaZones(AbstractContainerScreen<?> screen) {
+        List<Rectangle> areas = new ArrayList<>();
+        for (var area : EFVanillaInfoOverlay.extraAreas(screen)) {
+            areas.add(new Rectangle(area.getX(), area.getY(), area.getWidth(), area.getHeight()));
+        }
+        return areas;
     }
 
     public record EFRecipeViewerReiDisplay(EFMachineKind kind) implements Display {

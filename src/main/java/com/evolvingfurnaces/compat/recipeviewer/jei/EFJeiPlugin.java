@@ -2,6 +2,7 @@ package com.evolvingfurnaces.compat.recipeviewer.jei;
 
 import com.evolvingfurnaces.EFConstants;
 import com.evolvingfurnaces.EFConfig;
+import com.evolvingfurnaces.client.gui.EFVanillaInfoOverlay;
 import com.evolvingfurnaces.client.gui.EvolvingBrewingStandScreen;
 import com.evolvingfurnaces.client.gui.EvolvingMachineScreen;
 import com.evolvingfurnaces.compat.recipeviewer.EFRecipeViewer;
@@ -37,6 +38,11 @@ import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.inventory.BlastFurnaceScreen;
+import net.minecraft.client.gui.screens.inventory.BrewingStandScreen;
+import net.minecraft.client.gui.screens.inventory.FurnaceScreen;
+import net.minecraft.client.gui.screens.inventory.SmokerScreen;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -115,6 +121,22 @@ public final class EFJeiPlugin implements IModPlugin {
             @Override
             public List<Rect2i> getGuiExtraAreas(EvolvingBrewingStandScreen screen) {
                 return screen.guiExtraAreas();
+            }
+        });
+        addVanillaExtraAreas(registration, FurnaceScreen.class);
+        addVanillaExtraAreas(registration, BlastFurnaceScreen.class);
+        addVanillaExtraAreas(registration, SmokerScreen.class);
+        addVanillaExtraAreas(registration, BrewingStandScreen.class);
+    }
+
+    private static <T extends AbstractContainerScreen<?>> void addVanillaExtraAreas(
+            IGuiHandlerRegistration registration,
+            Class<T> type
+    ) {
+        registration.addGuiContainerHandler(type, new IGuiContainerHandler<>() {
+            @Override
+            public List<Rect2i> getGuiExtraAreas(T screen) {
+                return EFVanillaInfoOverlay.extraAreas(screen);
             }
         });
     }

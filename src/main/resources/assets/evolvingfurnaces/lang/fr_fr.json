@@ -10,6 +10,7 @@
   "evolvingfurnaces.gui.io": "Configuration des faces",
   "evolvingfurnaces.gui.io_config": "Config IO",
   "evolvingfurnaces.gui.max_level": "NIVEAU MAX",
+  "evolvingfurnaces.gui.vanilla": "Vanilla",
   "evolvingfurnaces.gui.level": "Niveau : %s",
   "evolvingfurnaces.gui.cook_time": "Temps de cuisson : %s ticks (%.2fs)",
   "evolvingfurnaces.gui.brew_time": "Temps d'alchimie : %s ticks (%.2fs)",
