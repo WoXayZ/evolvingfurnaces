@@ -1,40 +1,39 @@
 package com.evolvingfurnaces.network;
 
-import com.evolvingfurnaces.EFConstants;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import com.evolvingfurnaces.tier.EFTierList;
 import com.evolvingfurnaces.tier.EFTierManager;
 import com.mojang.serialization.Codec;
 import java.util.EnumMap;
 import java.util.Map;
+import java.util.function.Supplier;
+import net.minecraft.nbt.CompoundTag;
+import net.minecraft.nbt.NbtOps;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.minecraftforge.network.NetworkEvent;
 
-public record EFSyncTiersPayload(Map<EFMachineKind, EFTierList> tiers) implements CustomPacketPayload {
-
-    public static final Type<EFSyncTiersPayload> TYPE = new Type<>(EFConstants.id("sync_tiers"));
+public record EFSyncTiersPayload(Map<EFMachineKind, EFTierList> tiers) {
 
     private static final Codec<Map<EFMachineKind, EFTierList>> MAP_CODEC =
             Codec.unboundedMap(Codec.STRING.xmap(EFSyncTiersPayload::kindOf, EFMachineKind::id), EFTierList.CODEC);
-
-    public static final StreamCodec<FriendlyByteBuf, EFSyncTiersPayload> STREAM_CODEC = StreamCodec.of(
-            (buf, payload) -> buf.writeJsonWithCodec(MAP_CODEC, payload.tiers()),
-            buf -> new EFSyncTiersPayload(new EnumMap<>(buf.readJsonWithCodec(MAP_CODEC)))
-    );
 
     public static EFSyncTiersPayload from(Map<EFMachineKind, EFTierList> tiers) {
         return new EFSyncTiersPayload(new EnumMap<>(tiers));
     }
 
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
+    public static void encode(EFSyncTiersPayload payload, FriendlyByteBuf buf) {
+        CompoundTag tag = (CompoundTag) MAP_CODEC.encodeStart(NbtOps.INSTANCE, payload.tiers()).result().orElseThrow();
+        buf.writeNbt(tag);
     }
 
-    public static void handle(EFSyncTiersPayload payload, IPayloadContext context) {
+    public static EFSyncTiersPayload decode(FriendlyByteBuf buf) {
+        return new EFSyncTiersPayload(new EnumMap<>(MAP_CODEC.parse(NbtOps.INSTANCE, buf.readNbt()).result().orElseThrow()));
+    }
+
+    public static void handle(EFSyncTiersPayload payload, Supplier<NetworkEvent.Context> ctx) {
+        NetworkEvent.Context context = ctx.get();
         context.enqueueWork(() -> EFTierManager.replaceClient(payload.tiers()));
+        context.setPacketHandled(true);
     }
 
     private static EFMachineKind kindOf(String id) {

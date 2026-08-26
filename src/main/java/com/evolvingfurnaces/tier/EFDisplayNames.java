@@ -6,7 +6,7 @@ import java.util.Map;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.fml.loading.FMLEnvironment;
+import net.minecraftforge.fml.loading.FMLEnvironment;
 import org.jetbrains.annotations.Nullable;
 
 public record EFDisplayNames(Map<String, String> byLocale) {

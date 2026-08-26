@@ -1,7 +1,6 @@
 package com.evolvingfurnaces.machine;
 
 import com.evolvingfurnaces.registry.EFBlockEntities;
-import com.evolvingfurnaces.registry.EFDataComponents;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import com.evolvingfurnaces.tier.EFMachineTier;
 import com.evolvingfurnaces.tier.EFTierManager;
@@ -10,9 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
-import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
@@ -20,7 +17,9 @@ import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
+import net.minecraft.world.Container;
 import net.minecraft.world.ContainerHelper;
+import net.minecraft.world.SimpleContainer;
 import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.player.Inventory;
@@ -28,25 +27,28 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.entity.player.StackedContents;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
-import net.minecraft.world.inventory.RecipeCraftingHolder;
+import net.minecraft.world.inventory.RecipeHolder;
 import net.minecraft.world.inventory.StackedContentsCompatible;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.AbstractCookingRecipe;
-import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeManager;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.AbstractFurnaceBlock;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.items.IItemHandler;
+import net.minecraftforge.common.ForgeHooks;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.items.IItemHandler;
 import org.jetbrains.annotations.Nullable;
 
 public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
-        implements WorldlyContainer, RecipeCraftingHolder, StackedContentsCompatible, EFIoHost {
+        implements WorldlyContainer, RecipeHolder, StackedContentsCompatible, EFIoHost {
 
     public static final int SLOT_INPUT = 0;
     public static final int SLOT_FUEL = 1;
@@ -62,6 +64,8 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     private NonNullList<ItemStack> items = NonNullList.withSize(3, ItemStack.EMPTY);
     private final EFMachineIo io = new EFMachineIo();
     private final EFMachineIoHandler[] handlers = new EFMachineIoHandler[7];
+    @SuppressWarnings("unchecked")
+    private final LazyOptional<IItemHandler>[] lazy = new LazyOptional[7];
     private int machineLevel = 1;
     private int cooks;
     private int litTime;
@@ -75,7 +79,9 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     @Nullable
     private Item cycleInputItem;
     private final Object2IntOpenHashMap<ResourceLocation> recipesUsed = new Object2IntOpenHashMap<>();
-    private final RecipeManager.CachedCheck<SingleRecipeInput, AbstractCookingRecipe> quickCheck;
+    private final RecipeManager.CachedCheck<Container, AbstractCookingRecipe> quickCheck;
+    @Nullable
+    private Recipe<?> usedRecipe;
 
     private final ContainerData dataAccess = new ContainerData() {
         @Override
@@ -186,6 +192,29 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         return handler;
     }
 
+    @Override
+    public <T> LazyOptional<T> getCapability(Capability<T> cap, @Nullable Direction side) {
+        if (cap == ForgeCapabilities.ITEM_HANDLER && !isRemoved()) {
+            int index = side == null ? 6 : side.ordinal();
+            if (lazy[index] == null) {
+                lazy[index] = LazyOptional.of(() -> handler(side));
+            }
+            return lazy[index].cast();
+        }
+        return super.getCapability(cap, side);
+    }
+
+    @Override
+    public void invalidateCaps() {
+        super.invalidateCaps();
+        for (int i = 0; i < lazy.length; i++) {
+            if (lazy[i] != null) {
+                lazy[i].invalidate();
+                lazy[i] = null;
+            }
+        }
+    }
+
     /**
      * At most one batch completion per game tick. Never catch-up-loop, never {@code progress += speed}.
      * A netherite furnace with batch 8 is one vanilla smelt's worth of work, then {@code grow(8)}.
@@ -249,11 +278,11 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
             refreshTierStats();
             cookingTotalTime = cachedCookTime;
         }
-        RecipeHolder<AbstractCookingRecipe> recipe = quickCheck.getRecipeFor(new SingleRecipeInput(input), level).orElse(null);
+        AbstractCookingRecipe recipe = quickCheck.getRecipeFor(this, level).orElse(null);
         if (recipe == null) {
             return false;
         }
-        ItemStack result = recipe.value().assemble(new SingleRecipeInput(input), level.registryAccess());
+        ItemStack result = recipe.assemble(this, level.registryAccess());
         int batch = computeBatch(result);
         if (batch < 1) {
             return false;
@@ -296,12 +325,12 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
             cycleInputItem = null;
             return false;
         }
-        RecipeHolder<AbstractCookingRecipe> recipe = quickCheck.getRecipeFor(new SingleRecipeInput(input), level).orElse(null);
+        AbstractCookingRecipe recipe = quickCheck.getRecipeFor(this, level).orElse(null);
         if (recipe == null) {
             cycleInputItem = null;
             return false;
         }
-        ItemStack result = recipe.value().assemble(new SingleRecipeInput(input), level.registryAccess());
+        ItemStack result = recipe.assemble(this, level.registryAccess());
         int batch = computeBatch(result);
         if (batch < 1) {
             cycleInputItem = null;
@@ -321,7 +350,7 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         int outputRoom;
         if (output.isEmpty()) {
             outputRoom = result.getMaxStackSize();
-        } else if (ItemStack.isSameItemSameComponents(output, result)) {
+        } else if (ItemStack.isSameItemSameTags(output, result)) {
             outputRoom = output.getMaxStackSize() - output.getCount();
         } else {
             return 0;
@@ -333,19 +362,19 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         return Math.min(Math.min(cachedBatchSize, input.getCount()), byOutput);
     }
 
-    private void finishCook(RecipeHolder<AbstractCookingRecipe> recipe, ItemStack result, int batch) {
+    private void finishCook(AbstractCookingRecipe recipe, ItemStack result, int batch) {
         ItemStack input = items.get(SLOT_INPUT).copy();
         ItemStack output = items.get(SLOT_OUTPUT).copy();
         int produced = result.getCount() * batch;
         if (output.isEmpty()) {
-            setItem(SLOT_OUTPUT, result.copyWithCount(produced));
+            setItem(SLOT_OUTPUT, EFStacks.copyWithCount(result, produced));
         } else {
             output.grow(produced);
             setItem(SLOT_OUTPUT, output);
         }
         input.shrink(batch);
         setItem(SLOT_INPUT, input.isEmpty() ? ItemStack.EMPTY : input);
-        recipesUsed.addTo(recipe.id(), batch);
+        recipesUsed.addTo(recipe.getId(), batch);
         cooks += batch;
     }
 
@@ -359,15 +388,15 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         if (stack.isEmpty()) {
             return 0;
         }
-        return stack.getBurnTime(kind.recipeType());
+        return ForgeHooks.getBurnTime(stack, kind.recipeType());
     }
 
     public boolean isLit() {
         return litTime > 0;
     }
 
-    public void loadVanillaData(CompoundTag tag, ItemStack[] stacks, int newLevel, HolderLookup.Provider registries) {
-        loadAdditional(tag, registries);
+    public void loadVanillaData(CompoundTag tag, ItemStack[] stacks, int newLevel) {
+        load(tag);
         for (int i = 0; i < Math.min(stacks.length, items.size()); i++) {
             items.set(i, stacks[i]);
         }
@@ -381,12 +410,12 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         }
     }
 
-    public List<RecipeHolder<?>> awardRecipesAndPopExperience(ServerLevel level, Vec3 pos) {
-        List<RecipeHolder<?>> awarded = new ArrayList<>();
+    public List<Recipe<?>> awardRecipesAndPopExperience(ServerLevel level, Vec3 pos) {
+        List<Recipe<?>> awarded = new ArrayList<>();
         for (var entry : recipesUsed.object2IntEntrySet()) {
-            level.getRecipeManager().byKey(entry.getKey()).ifPresent(holder -> {
-                awarded.add(holder);
-                if (holder.value() instanceof AbstractCookingRecipe cooking) {
+            level.getRecipeManager().byKey(entry.getKey()).ifPresent(recipe -> {
+                awarded.add(recipe);
+                if (recipe instanceof AbstractCookingRecipe cooking) {
                     createExperience(level, pos, entry.getIntValue(), cooking.getExperience());
                 }
             });
@@ -409,16 +438,6 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     }
 
     @Override
-    protected NonNullList<ItemStack> getItems() {
-        return items;
-    }
-
-    @Override
-    protected void setItems(NonNullList<ItemStack> items) {
-        this.items = items;
-    }
-
-    @Override
     protected AbstractContainerMenu createMenu(int containerId, Inventory inventory) {
         return new EvolvingMachineMenu(containerId, inventory, this, dataAccess, kind);
     }
@@ -426,6 +445,50 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     @Override
     public int getContainerSize() {
         return items.size();
+    }
+
+    @Override
+    public boolean isEmpty() {
+        for (ItemStack stack : items) {
+            if (!stack.isEmpty()) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    @Override
+    public ItemStack getItem(int slot) {
+        return items.get(slot);
+    }
+
+    @Override
+    public ItemStack removeItem(int slot, int amount) {
+        return ContainerHelper.removeItem(items, slot, amount);
+    }
+
+    @Override
+    public ItemStack removeItemNoUpdate(int slot) {
+        return ContainerHelper.takeItem(items, slot);
+    }
+
+    @Override
+    public void setItem(int slot, ItemStack stack) {
+        items.set(slot, stack);
+        if (!stack.isEmpty() && stack.getCount() > getMaxStackSize()) {
+            stack.setCount(getMaxStackSize());
+        }
+        setChanged();
+    }
+
+    @Override
+    public boolean stillValid(Player player) {
+        return Container.stillValidBlockEntity(this, player);
+    }
+
+    @Override
+    public void clearContent() {
+        items.clear();
     }
 
     @Override
@@ -437,7 +500,7 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
             ItemStack fuel = items.get(SLOT_FUEL);
             return getBurnDuration(stack) > 0 || stack.is(Items.BUCKET) && !fuel.is(Items.BUCKET);
         }
-        return level != null && quickCheck.getRecipeFor(new SingleRecipeInput(stack), level).isPresent();
+        return level != null && quickCheck.getRecipeFor(new SimpleContainer(stack), level).isPresent();
     }
 
     @Override
@@ -475,22 +538,22 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     }
 
     @Override
-    public void setRecipeUsed(@Nullable RecipeHolder<?> recipe) {
-        // recipesUsed is updated in finishCook
+    public void setRecipeUsed(@Nullable Recipe<?> recipe) {
+        usedRecipe = recipe;
     }
 
     @Override
     @Nullable
-    public RecipeHolder<?> getRecipeUsed() {
-        return null;
+    public Recipe<?> getRecipeUsed() {
+        return usedRecipe;
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(CompoundTag tag) {
+        super.load(tag);
         if (tag.contains("Items", Tag.TAG_LIST)) {
             items = NonNullList.withSize(getContainerSize(), ItemStack.EMPTY);
-            ContainerHelper.loadAllItems(tag, items, registries);
+            ContainerHelper.loadAllItems(tag, items);
         }
         litTime = tag.getInt("BurnTime");
         cookingProgress = tag.getInt("CookTime");
@@ -512,20 +575,20 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         recipesUsed.clear();
         CompoundTag used = tag.getCompound("RecipesUsed");
         for (String key : used.getAllKeys()) {
-            recipesUsed.put(ResourceLocation.parse(key), used.getInt(key));
+            recipesUsed.put(new ResourceLocation(key), used.getInt(key));
         }
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
         tag.putInt("BurnTime", litTime);
         tag.putInt("CookTime", cookingProgress);
         tag.putInt("CookTimeTotal", cookingTotalTime);
         tag.putInt("LitDuration", litDuration);
         tag.putInt("MachineLevel", machineLevel);
         tag.putInt("Cooks", cooks);
-        ContainerHelper.saveAllItems(tag, items, registries);
+        ContainerHelper.saveAllItems(tag, items);
         io.save(tag);
         CompoundTag used = new CompoundTag();
         recipesUsed.forEach((id, count) -> used.putInt(id.toString(), count));
@@ -533,8 +596,8 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     }
 
     @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-        CompoundTag tag = super.getUpdateTag(registries);
+    public CompoundTag getUpdateTag() {
+        CompoundTag tag = super.getUpdateTag();
         tag.putInt("MachineLevel", machineLevel);
         tag.putInt("Cooks", cooks);
         io.save(tag);
@@ -542,8 +605,7 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     }
 
     @Override
-    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider registries) {
-        super.handleUpdateTag(tag, registries);
+    public void handleUpdateTag(CompoundTag tag) {
         if (tag.contains("MachineLevel", Tag.TAG_INT)) {
             machineLevel = Math.max(1, tag.getInt("MachineLevel"));
             refreshTierStats();
@@ -557,24 +619,5 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     @Override
     public ClientboundBlockEntityDataPacket getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
-    }
-
-    @Override
-    protected void applyImplicitComponents(DataComponentInput input) {
-        super.applyImplicitComponents(input);
-        machineLevel = Math.max(1, input.getOrDefault(EFDataComponents.MACHINE_LEVEL.get(), 1));
-        refreshTierStats();
-    }
-
-    @Override
-    protected void collectImplicitComponents(DataComponentMap.Builder builder) {
-        super.collectImplicitComponents(builder);
-        builder.set(EFDataComponents.MACHINE_LEVEL.get(), machineLevel);
-    }
-
-    @Override
-    public void removeComponentsFromTag(CompoundTag tag) {
-        super.removeComponentsFromTag(tag);
-        tag.remove("MachineLevel");
     }
 }

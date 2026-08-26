@@ -1,20 +1,21 @@
 package com.evolvingfurnaces.machine;
 
 import com.evolvingfurnaces.registry.EFBlockEntities;
-import com.evolvingfurnaces.registry.EFDataComponents;
 import com.evolvingfurnaces.tier.EFMachineKind;
-import com.mojang.serialization.MapCodec;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
+import net.minecraft.world.Containers;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.LevelReader;
 import net.minecraft.world.level.block.AbstractFurnaceBlock;
 import net.minecraft.world.level.block.RenderShape;
 import net.minecraft.world.level.block.entity.BlockEntity;
@@ -23,17 +24,16 @@ import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.network.NetworkHooks;
 import org.jetbrains.annotations.Nullable;
 
 public class EvolvingMachineBlock extends AbstractFurnaceBlock {
 
     private final EFMachineKind kind;
-    private final MapCodec<EvolvingMachineBlock> codec;
 
     public EvolvingMachineBlock(Properties properties, EFMachineKind kind) {
         super(properties);
         this.kind = kind;
-        this.codec = simpleCodec(props -> new EvolvingMachineBlock(props, kind));
     }
 
     public EFMachineKind kind() {
@@ -41,15 +41,10 @@ public class EvolvingMachineBlock extends AbstractFurnaceBlock {
     }
 
     @Override
-    protected MapCodec<? extends AbstractFurnaceBlock> codec() {
-        return codec;
-    }
-
-    @Override
     protected void openContainer(Level level, BlockPos pos, Player player) {
         BlockEntity blockEntity = level.getBlockEntity(pos);
-        if (blockEntity instanceof EvolvingMachineBlockEntity machine) {
-            player.openMenu(machine, pos);
+        if (blockEntity instanceof EvolvingMachineBlockEntity machine && player instanceof ServerPlayer serverPlayer) {
+            NetworkHooks.openScreen(serverPlayer, machine, pos);
         }
     }
 
@@ -65,30 +60,35 @@ public class EvolvingMachineBlock extends AbstractFurnaceBlock {
     }
 
     @Override
-    public ItemStack getCloneItemStack(BlockState state, HitResult target, LevelReader level, BlockPos pos, Player player) {
+    public ItemStack getCloneItemStack(BlockState state, HitResult target, BlockGetter level, BlockPos pos, Player player) {
         ItemStack stack = new ItemStack(this);
         if (level.getBlockEntity(pos) instanceof EvolvingMachineBlockEntity machine) {
-            stack.set(EFDataComponents.MACHINE_LEVEL.get(), machine.machineLevel());
+            return EvolvingMachineItem.withLevel(asItem(), machine.machineLevel());
         }
         return stack;
     }
 
     @Override
-    public ItemStack getCloneItemStack(LevelReader level, BlockPos pos, BlockState state) {
-        return getCloneItemStack(state, null, level, pos, null);
-    }
-
-    @Override
-    protected RenderShape getRenderShape(BlockState state) {
+    public RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
     }
 
     @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
+    public void setPlacedBy(Level level, BlockPos pos, BlockState state, @Nullable LivingEntity placer, ItemStack stack) {
+        super.setPlacedBy(level, pos, state, placer, stack);
+        if (level.getBlockEntity(pos) instanceof EvolvingMachineBlockEntity machine) {
+            machine.setMachineLevel(EvolvingMachineItem.levelOf(stack));
+        }
+    }
+
+    @Override
+    public void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
         if (!state.is(newState.getBlock()) && level instanceof ServerLevel serverLevel
                 && level.getBlockEntity(pos) instanceof EvolvingMachineBlockEntity machine
                 && !machine.convertingToVanilla()) {
+            Containers.dropContents(level, pos, machine);
             machine.awardRecipesAndPopExperience(serverLevel, Vec3.atCenterOf(pos));
+            level.updateNeighbourForOutputSignal(pos, this);
         }
         super.onRemove(state, level, pos, newState, movedByPiston);
     }

@@ -1,43 +1,41 @@
 package com.evolvingfurnaces.network;
 
-import com.evolvingfurnaces.EFConstants;
 import com.evolvingfurnaces.machine.EFIoHost;
+import java.util.function.Supplier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.network.NetworkEvent;
 
-public record EFConfigureIoPayload(BlockPos pos, Direction face) implements CustomPacketPayload {
+public record EFConfigureIoPayload(BlockPos pos, Direction face) {
 
-    public static final Type<EFConfigureIoPayload> TYPE = new Type<>(EFConstants.id("configure_io"));
-
-    public static final StreamCodec<FriendlyByteBuf, EFConfigureIoPayload> STREAM_CODEC =
-            StreamCodec.of(
-                    (buf, payload) -> {
-                        buf.writeBlockPos(payload.pos());
-                        buf.writeEnum(payload.face());
-                    },
-                    buf -> new EFConfigureIoPayload(buf.readBlockPos(), buf.readEnum(Direction.class)));
-
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
+    public static void encode(EFConfigureIoPayload payload, FriendlyByteBuf buf) {
+        buf.writeBlockPos(payload.pos());
+        buf.writeEnum(payload.face());
     }
 
-    public static void handle(EFConfigureIoPayload payload, IPayloadContext context) {
-        if (!(context.player() instanceof ServerPlayer player)) {
-            return;
-        }
-        if (!player.level().isLoaded(payload.pos()) || player.distanceToSqr(payload.pos().getCenter()) > 64.0D) {
-            return;
-        }
-        if (player.level().getBlockEntity(payload.pos()) instanceof EFIoHost machine) {
-            machine.io().cycle(payload.face());
-            machine.setChanged();
-            player.level().sendBlockUpdated(payload.pos(), machine.getBlockState(), machine.getBlockState(), 3);
-        }
+    public static EFConfigureIoPayload decode(FriendlyByteBuf buf) {
+        return new EFConfigureIoPayload(buf.readBlockPos(), buf.readEnum(Direction.class));
+    }
+
+    public static void handle(EFConfigureIoPayload payload, Supplier<NetworkEvent.Context> ctx) {
+        NetworkEvent.Context context = ctx.get();
+        context.enqueueWork(() -> {
+            ServerPlayer player = context.getSender();
+            if (player == null) {
+                return;
+            }
+            if (!player.level().isLoaded(payload.pos()) || player.distanceToSqr(Vec3.atCenterOf(payload.pos())) > 64.0D) {
+                return;
+            }
+            if (player.level().getBlockEntity(payload.pos()) instanceof EFIoHost machine) {
+                machine.io().cycle(payload.face());
+                machine.setChanged();
+                player.level().sendBlockUpdated(payload.pos(), machine.getBlockState(), machine.getBlockState(), 3);
+            }
+        });
+        context.setPacketHandled(true);
     }
 }

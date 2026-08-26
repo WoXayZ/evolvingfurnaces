@@ -199,5 +199,14 @@ public final class EFReiClientPlugin implements REIClientPlugin {
         public List<? extends GuiEventListener> children() {
             return Collections.emptyList();
         }
+
+        @Override
+        public void setFocused(@org.jetbrains.annotations.Nullable GuiEventListener listener) {
+        }
+
+        @Override
+        public GuiEventListener getFocused() {
+            return null;
+        }
     }
 }

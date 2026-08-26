@@ -1,31 +1,30 @@
 package com.evolvingfurnaces.network;
 
-import com.evolvingfurnaces.EFConstants;
 import com.evolvingfurnaces.machine.EFUpgradeHandler;
+import java.util.function.Supplier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.FriendlyByteBuf;
-import net.minecraft.network.codec.StreamCodec;
-import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.neoforge.network.handling.IPayloadContext;
+import net.minecraftforge.network.NetworkEvent;
 
-public record EFUpgradeMachinePayload(BlockPos pos) implements CustomPacketPayload {
+public record EFUpgradeMachinePayload(BlockPos pos) {
 
-    public static final Type<EFUpgradeMachinePayload> TYPE = new Type<>(EFConstants.id("upgrade_machine"));
-
-    public static final StreamCodec<FriendlyByteBuf, EFUpgradeMachinePayload> STREAM_CODEC =
-            StreamCodec.of(
-                    (buf, payload) -> buf.writeBlockPos(payload.pos()),
-                    buf -> new EFUpgradeMachinePayload(buf.readBlockPos()));
-
-    @Override
-    public Type<? extends CustomPacketPayload> type() {
-        return TYPE;
+    public static void encode(EFUpgradeMachinePayload payload, FriendlyByteBuf buf) {
+        buf.writeBlockPos(payload.pos());
     }
 
-    public static void handle(EFUpgradeMachinePayload payload, IPayloadContext context) {
-        if (context.player() instanceof ServerPlayer player) {
-            EFUpgradeHandler.tryUpgrade(player, payload.pos());
-        }
+    public static EFUpgradeMachinePayload decode(FriendlyByteBuf buf) {
+        return new EFUpgradeMachinePayload(buf.readBlockPos());
+    }
+
+    public static void handle(EFUpgradeMachinePayload payload, Supplier<NetworkEvent.Context> ctx) {
+        NetworkEvent.Context context = ctx.get();
+        context.enqueueWork(() -> {
+            ServerPlayer player = context.getSender();
+            if (player != null) {
+                EFUpgradeHandler.tryUpgrade(player, payload.pos());
+            }
+        });
+        context.setPacketHandled(true);
     }
 }

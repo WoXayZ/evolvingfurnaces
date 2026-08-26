@@ -36,7 +36,7 @@ public record EFTierList(List<EFMachineTier> levels) {
     }
 
     public Optional<EFMachineTier> first() {
-        return levels.isEmpty() ? Optional.empty() : Optional.of(levels.getFirst());
+        return levels.isEmpty() ? Optional.empty() : Optional.of(levels.get(0));
     }
 
     public Optional<EFMachineTier> nextAfter(int currentLevel) {

@@ -8,7 +8,7 @@ import net.minecraft.resources.ResourceLocation;
 
 public class EFVanillaInfoButton extends EFSpriteButton {
 
-    private static final ResourceLocation INFO = EFConstants.id("widget/info");
+    private static final ResourceLocation INFO = EFConstants.widget("info");
 
     private final AbstractContainerScreen<?> screen;
 

@@ -124,11 +124,12 @@ public class EvolvingBrewingStandRenderer implements BlockEntityRenderer<Evolvin
             float ny,
             float nz
     ) {
-        consumer.addVertex(pose, x, y, z)
-                .setColor(255, 255, 255, 255)
-                .setUv(u, v)
-                .setOverlay(overlay)
-                .setLight(light)
-                .setNormal(pose, nx, ny, nz);
+        consumer.vertex(pose.pose(), x, y, z)
+                .color(255, 255, 255, 255)
+                .uv(u, v)
+                .overlayCoords(overlay)
+                .uv2(light)
+                .normal(pose.normal(), nx, ny, nz)
+                .endVertex();
     }
 }

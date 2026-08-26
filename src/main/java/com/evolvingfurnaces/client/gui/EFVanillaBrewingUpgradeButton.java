@@ -2,6 +2,7 @@ package com.evolvingfurnaces.client.gui;
 
 import com.evolvingfurnaces.EFConstants;
 import com.evolvingfurnaces.machine.EFUpgradeHandler;
+import com.evolvingfurnaces.network.EFNetwork;
 import com.evolvingfurnaces.network.EFUpgradeMachinePayload;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import net.minecraft.client.Minecraft;
@@ -11,12 +12,11 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Player;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 public class EFVanillaBrewingUpgradeButton extends EFSpriteButton {
 
-    private static final ResourceLocation UPGRADE = EFConstants.id("widget/upgrade");
-    private static final ResourceLocation UPGRADE_READY = EFConstants.id("widget/upgrade_ready");
+    private static final ResourceLocation UPGRADE = EFConstants.widget("upgrade");
+    private static final ResourceLocation UPGRADE_READY = EFConstants.widget("upgrade_ready");
 
     private final BrewingStandScreen screen;
 
@@ -25,7 +25,7 @@ public class EFVanillaBrewingUpgradeButton extends EFSpriteButton {
                 screen.getGuiLeft() + screen.getXSize() - 20,
                 screen.getGuiTop() - 20,
                 EFVanillaBrewingUpgradeButton::icon,
-                button -> PacketDistributor.sendToServer(new EFUpgradeMachinePayload(pos)),
+                button -> EFNetwork.CHANNEL.sendToServer(new EFUpgradeMachinePayload(pos)),
                 Component.translatable("evolvingfurnaces.gui.upgrade"));
         this.screen = screen;
     }

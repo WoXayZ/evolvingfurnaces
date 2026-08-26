@@ -1,18 +1,18 @@
 package com.evolvingfurnaces;
 
 import com.evolvingfurnaces.tier.EFMachineKind;
-import net.neoforged.neoforge.common.ModConfigSpec;
+import net.minecraftforge.common.ForgeConfigSpec;
 
 public final class EFConfig {
 
-    public static final ModConfigSpec SPEC;
-    public static final ModConfigSpec.BooleanValue FURNACE_ENABLED;
-    public static final ModConfigSpec.BooleanValue BLAST_FURNACE_ENABLED;
-    public static final ModConfigSpec.BooleanValue SMOKER_ENABLED;
-    public static final ModConfigSpec.BooleanValue BREWING_STAND_ENABLED;
+    public static final ForgeConfigSpec SPEC;
+    public static final ForgeConfigSpec.BooleanValue FURNACE_ENABLED;
+    public static final ForgeConfigSpec.BooleanValue BLAST_FURNACE_ENABLED;
+    public static final ForgeConfigSpec.BooleanValue SMOKER_ENABLED;
+    public static final ForgeConfigSpec.BooleanValue BREWING_STAND_ENABLED;
 
     static {
-        ModConfigSpec.Builder builder = new ModConfigSpec.Builder();
+        ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
 
         builder.push("furnace");
         FURNACE_ENABLED = builder

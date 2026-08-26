@@ -51,7 +51,7 @@ public final class EFPlayerCosts {
                 total += stack.getCount();
             }
         }
-        ItemStack offhand = inventory.offhand.getFirst();
+        ItemStack offhand = inventory.offhand.get(0);
         if (cost.matches(offhand)) {
             total += offhand.getCount();
         }

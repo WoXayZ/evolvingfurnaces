@@ -1,4 +1,4 @@
-﻿{
+{
   "type": "minecraft:block",
   "pools": [
     {
@@ -10,9 +10,20 @@
           "name": "evolvingfurnaces:smoker",
           "functions": [
             {
-              "function": "minecraft:copy_components",
+              "function": "minecraft:copy_nbt",
               "source": "block_entity",
-              "include": ["evolvingfurnaces:machine_level"]
+              "ops": [
+                {
+                  "source": "MachineLevel",
+                  "target": "MachineLevel",
+                  "op": "replace"
+                },
+                {
+                  "source": "MachineLevel",
+                  "target": "BlockEntityTag.MachineLevel",
+                  "op": "replace"
+                }
+              ]
             },
             {
               "function": "minecraft:copy_name",
@@ -29,4 +40,3 @@
     }
   ]
 }
-

@@ -4,7 +4,6 @@ import com.evolvingfurnaces.EFConfig;
 import com.evolvingfurnaces.registry.EFBlocks;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.item.ItemStack;
@@ -37,8 +36,7 @@ public final class EFDisableConverter {
     }
 
     private static void convertCooking(ServerLevel level, BlockPos pos, EvolvingMachineBlockEntity machine) {
-        HolderLookup.Provider registries = level.registryAccess();
-        CompoundTag tag = machine.saveWithoutMetadata(registries);
+        CompoundTag tag = machine.saveWithoutMetadata();
         ItemStack[] stacks = copyAndClear(machine);
         machine.markConvertingToVanilla();
         BlockState oldState = machine.getBlockState();
@@ -52,7 +50,7 @@ public final class EFDisableConverter {
         level.setBlock(pos, newState, Block.UPDATE_ALL);
         BlockEntity created = level.getBlockEntity(pos);
         if (created instanceof AbstractFurnaceBlockEntity vanilla) {
-            vanilla.loadWithComponents(tag, registries);
+            vanilla.load(tag);
             for (int i = 0; i < Math.min(stacks.length, vanilla.getContainerSize()); i++) {
                 vanilla.setItem(i, stacks[i]);
             }
@@ -60,8 +58,7 @@ public final class EFDisableConverter {
     }
 
     private static void convertBrewing(ServerLevel level, BlockPos pos, EvolvingBrewingStandBlockEntity machine) {
-        HolderLookup.Provider registries = level.registryAccess();
-        CompoundTag tag = machine.saveWithoutMetadata(registries);
+        CompoundTag tag = machine.saveWithoutMetadata();
         ItemStack[] stacks = copyAndClear(machine);
         machine.markConvertingToVanilla();
         BlockState oldState = machine.getBlockState();
@@ -74,7 +71,7 @@ public final class EFDisableConverter {
         level.setBlock(pos, newState, Block.UPDATE_ALL);
         BlockEntity created = level.getBlockEntity(pos);
         if (created instanceof BrewingStandBlockEntity vanilla) {
-            vanilla.loadWithComponents(tag, registries);
+            vanilla.load(tag);
             for (int i = 0; i < Math.min(stacks.length, vanilla.getContainerSize()); i++) {
                 ItemStack stack = stacks[i];
                 if (i < 3 && stack.getCount() > stack.getMaxStackSize()) {
@@ -83,7 +80,7 @@ public final class EFDisableConverter {
                     while (extra > 0) {
                         int drop = Math.min(extra, Math.max(1, stack.getMaxStackSize()));
                         net.minecraft.world.Containers.dropItemStack(
-                                level, pos.getX(), pos.getY(), pos.getZ(), stack.copyWithCount(drop));
+                                level, pos.getX(), pos.getY(), pos.getZ(), EFStacks.copyWithCount(stack, drop));
                         extra -= drop;
                     }
                 }

@@ -32,7 +32,7 @@ public record EFCostIngredient(Optional<ResourceLocation> itemId, Optional<Resou
     }
 
     public static EFCostIngredient item(String id, int count) {
-        return new EFCostIngredient(Optional.of(ResourceLocation.parse(id)), Optional.empty(), count);
+        return new EFCostIngredient(Optional.of(new ResourceLocation(id)), Optional.empty(), count);
     }
 
     public boolean matches(ItemStack stack) {
@@ -49,7 +49,7 @@ public record EFCostIngredient(Optional<ResourceLocation> itemId, Optional<Resou
     public ItemStack displayStack() {
         if (itemId.isPresent()) {
             Item item = BuiltInRegistries.ITEM.get(itemId.get());
-            return new ItemStack(item, Math.min(count, item.getDefaultMaxStackSize()));
+            return new ItemStack(item, Math.min(count, item.getMaxStackSize()));
         }
         return ItemStack.EMPTY;
     }
