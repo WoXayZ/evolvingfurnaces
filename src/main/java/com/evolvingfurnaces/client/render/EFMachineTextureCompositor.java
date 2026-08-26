@@ -1,5 +1,7 @@
 package com.evolvingfurnaces.client.render;
 
+import com.evolvingfurnaces.EFConstants;
+import com.evolvingfurnaces.machine.EFEnergyModule;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import com.evolvingfurnaces.tier.EFMachineTier;
 import com.evolvingfurnaces.tier.EFStyleRef;
@@ -26,9 +28,22 @@ public final class EFMachineTextureCompositor {
     private EFMachineTextureCompositor() {
     }
 
-    public static ResourceLocation texture(EFMachineKind kind, EFMachineTier tier, Direction face, boolean lit) {
-        String key = kind.id() + "/" + tier.level() + "/" + face.getSerializedName() + "/" + lit + "/overlay";
-        return CACHE.computeIfAbsent(key, ignored -> compose(kind, tier, face, key));
+    public static ResourceLocation texture(
+            EFMachineKind kind,
+            EFMachineTier tier,
+            Direction face,
+            boolean lit,
+            EFEnergyModule module
+    ) {
+        int frame = moduleFrameIndex(kind, face, module, lit);
+        String key = kind.id()
+                + "/" + tier.level()
+                + "/" + face.getSerializedName()
+                + "/" + lit
+                + "/" + module.getSerializedName()
+                + "/" + frame
+                + "/overlay";
+        return CACHE.computeIfAbsent(key, ignored -> compose(kind, tier, face, lit, module, frame, key));
     }
 
     public static void clear() {
@@ -38,12 +53,21 @@ public final class EFMachineTextureCompositor {
         FRAME_COUNTS.clear();
     }
 
-    private static ResourceLocation compose(EFMachineKind kind, EFMachineTier tier, Direction face, String key) {
+    private static ResourceLocation compose(
+            EFMachineKind kind,
+            EFMachineTier tier,
+            Direction face,
+            boolean lit,
+            EFEnergyModule module,
+            int frame,
+            String key
+    ) {
         ResourceLocation id = ResourceLocation.fromNamespaceAndPath("evolvingfurnaces", "dynamic/" + key);
         Minecraft minecraft = Minecraft.getInstance();
         ResourceManager resources = minecraft.getResourceManager();
         try (NativeImage style = loadStyle(resources, tier.style(), face)) {
             NativeImage result = new NativeImage(GRID, GRID, true);
+            applyModuleOverlay(result, resources, kind, face, module, lit, frame);
             if (style != null) {
                 applyStyle(result, style, kind, face);
             }
@@ -72,6 +96,115 @@ public final class EFMachineTextureCompositor {
         boolean leftBar = px == 0 && py >= 2 && py <= 13;
         boolean rightBar = px == 15 && py >= 2 && py <= 13;
         return topBar || bottomBar || leftBar || rightBar;
+    }
+
+    private static void applyModuleOverlay(
+            NativeImage dest,
+            ResourceManager resources,
+            EFMachineKind kind,
+            Direction face,
+            EFEnergyModule module,
+            boolean lit,
+            int frame
+    ) {
+        if (!usesModuleOverlay(kind, face, module)) {
+            return;
+        }
+        boolean flipX = mirrorsVanillaNorth(kind);
+        if (module == EFEnergyModule.ELECTRIC && lit) {
+            applyPng(dest, resources, kind.vanillaFrontOffPng(), 0, true, flipX);
+            applyPng(dest, resources, moduleFront(kind, module, false), 0, false, flipX);
+            applyPng(dest, resources, moduleFront(kind, module, true), frame, false, flipX);
+            return;
+        }
+        applyPng(dest, resources, moduleFront(kind, module, lit), frame, false, flipX);
+    }
+
+    private static boolean mirrorsVanillaNorth(EFMachineKind kind) {
+        return kind == EFMachineKind.BLAST_FURNACE || kind == EFMachineKind.SMOKER;
+    }
+
+    private static void applyPng(
+            NativeImage dest,
+            ResourceManager resources,
+            ResourceLocation png,
+            int frame,
+            boolean copyOpaqueBase,
+            boolean flipX
+    ) {
+        try (NativeImage overlay = load(resources, png)) {
+            if (overlay == null) {
+                return;
+            }
+            int srcY = Math.min(Math.max(0, overlay.getHeight() - GRID), frame * GRID);
+            int width = Math.min(GRID, overlay.getWidth());
+            int height = Math.min(GRID, overlay.getHeight() - srcY);
+            for (int py = 0; py < height; py++) {
+                for (int px = 0; px < width; px++) {
+                    int pixel = overlay.getPixelRGBA(px, srcY + py);
+                    if (copyOpaqueBase) {
+                        pixel |= 0xFF000000;
+                    } else if (((pixel >> 24) & 0xFF) == 0) {
+                        continue;
+                    }
+                    int destX = flipX ? width - 1 - px : px;
+                    dest.setPixelRGBA(destX, py, pixel);
+                }
+            }
+        } catch (IOException ignored) {
+        }
+    }
+
+    private static int moduleFrameIndex(EFMachineKind kind, Direction face, EFEnergyModule module, boolean lit) {
+        if (!usesModuleOverlay(kind, face, module)) {
+            return 0;
+        }
+        ResourceLocation png = moduleFront(kind, module, lit);
+        String cacheKey = png.toString();
+        int frames = FRAME_COUNTS.computeIfAbsent(cacheKey, ignored -> {
+            try (NativeImage overlay = load(Minecraft.getInstance().getResourceManager(), png)) {
+                if (overlay == null || overlay.getHeight() <= GRID) {
+                    return 1;
+                }
+                return Math.max(1, overlay.getHeight() / GRID);
+            } catch (IOException e) {
+                return 1;
+            }
+        });
+        Minecraft minecraft = Minecraft.getInstance();
+        long time = minecraft.level != null ? minecraft.level.getGameTime() : 0L;
+        return (int) ((time / Math.max(1, moduleFrametime(png))) % Math.max(1, frames));
+    }
+
+    private static int moduleFrametime(ResourceLocation png) {
+        ResourceLocation mcmeta = ResourceLocation.fromNamespaceAndPath(png.getNamespace(), png.getPath() + ".mcmeta");
+        var resource = Minecraft.getInstance().getResourceManager().getResource(mcmeta);
+        if (resource.isEmpty()) {
+            return 1;
+        }
+        try (var reader = resource.get().openAsReader()) {
+            com.google.gson.JsonObject json = com.google.gson.JsonParser.parseReader(reader).getAsJsonObject();
+            if (json.has("animation") && json.getAsJsonObject("animation").has("frametime")) {
+                return Math.max(1, json.getAsJsonObject("animation").get("frametime").getAsInt());
+            }
+        } catch (Exception ignored) {
+        }
+        return 1;
+    }
+
+    private static boolean usesModuleOverlay(EFMachineKind kind, Direction face, EFEnergyModule module) {
+        if (face != Direction.NORTH || !module.installed()) {
+            return false;
+        }
+        return module == EFEnergyModule.GENERATOR ? kind == EFMachineKind.FURNACE : kind.isCooking();
+    }
+
+    private static ResourceLocation moduleFront(EFMachineKind kind, EFEnergyModule module, boolean lit) {
+        String suffix = lit ? "_on" : "";
+        if (module == EFEnergyModule.GENERATOR) {
+            return EFConstants.id("textures/block/generator_front" + suffix + ".png");
+        }
+        return EFConstants.id("textures/block/" + kind.id() + "_electric_front" + suffix + ".png");
     }
 
     private static void applyStyle(NativeImage dest, NativeImage style, EFMachineKind kind, Direction face) {

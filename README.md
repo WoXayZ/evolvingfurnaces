@@ -1,7 +1,7 @@
 # Evolving Furnaces
 
 Upgrade vanilla furnaces, blast furnaces, smokers and brewing stands through data-driven tiers.
-Minecraft **1.21.1** / **NeoForge 21.1.248**. Version **1.2**.
+Minecraft **1.21.1** / **NeoForge 21.1.248**. Version **1.3**.
 
 Vanilla machines stay vanilla. You upgrade one in place into a Copper machine (level 1), then keep going. Each tier can change processing time, batch size, the visual style, and the upgrade cost.
 
@@ -19,8 +19,9 @@ From level 1 you also get:
 
 - an **Info** panel: current stats, progression toward the next tier, next cost
 - a side **IO** panel for hoppers and pipes (no auto-eject)
+- two **energy modules** on furnace / blast furnace / smoker (not brewing, not vanilla)
 
-Vanilla machines get Info and Upgrade only, not IO.
+Vanilla machines get Info and Upgrade only, not IO and not energy modules.
 
 Default IO:
 
@@ -34,7 +35,7 @@ The default pack has 10 tiers, copper through netherite. A datapack can ship 3, 
 
 ## Configuration
 
-`config/evolvingfurnaces-common.toml`. One section per machine, independently:
+`config/evolvingfurnaces-common.toml`. One section per machine, independently, plus one per energy module:
 
 ```toml
 [furnace]
@@ -48,6 +49,12 @@ enabled = true
 
 [brewing_stand]
 enabled = true
+
+[generator]
+enabled = true
+
+[electric]
+enabled = true
 ```
 
 Disabling a machine:
@@ -55,10 +62,17 @@ Disabling a machine:
 - hides it from creative and JEI / EMI / REI
 - removes the upgrade and info buttons on the vanilla GUI
 - ignores that machine's datapack progression
-- converts already placed Evolving blocks back to vanilla on load (contents kept; tier, progression and IO are lost)
+- converts already placed Evolving blocks back to vanilla on load (contents kept; tier, progression, IO and energy module are lost)
 - never changes the vanilla block of the same type
 
-A datapack cannot re-enable a machine turned off here. Changing these flags needs a game restart (common config).
+Disabling an energy module (`[generator]` / `[electric]`, default `true`):
+
+- hides its GUI button and blocks install
+- strips already installed modules of that type on tick (tier, cooks and contents are kept; the furnace goes back to cooking with fuel)
+- hides that module from recipe viewers
+- cables no longer insert or extract FE for that module
+
+A datapack cannot re-enable a machine or module turned off here. Changing these flags needs a game restart (common config).
 
 ---
 
@@ -80,6 +94,36 @@ Same cook counts for furnace, blast furnace and smoker. Names and files differ. 
 | 10 | Netherite | 110 | 8 |
 
 Costs, cook counts and display names live in the JSON, not in code.
+
+---
+
+## Energy modules
+
+Furnace, blast furnace and smoker (not brewing stand) can install **one** energy module from copper onward. The choice is kept when you upgrade the tier. Swap costs the other module (hold Shift to confirm); there is no refund. Shift-click the installed module to remove it and go back to a normal furnace; there is no refund. Each module can be turned off in the common config (`[generator]` / `[electric]`, default on).
+
+- **Generator**: **furnaces only** (not blast furnace or smoker). Burns `batch_size` fuel items at a time (1 for buckets), 4× faster than vanilla burn time. No cooking; the input is ignored. Each lit tick fills an internal FE buffer at `energy_generate / 4` (batch does not multiply generation). Cables extract from **Energy** faces; output is always automatic. The front goes dark when the buffer is full.
+- **Electric**: furnace, blast furnace and smoker. Same recipes, cook time and batch size. No fuel. Cables insert FE on **Energy** and **Input** faces; cooking pauses when the buffer cannot pay `energy_consume` per tick. Each kind has its own front overlay; blast furnace and smoker follow vanilla UV mapping.
+
+Install from the GUI buttons (same family as Upgrade). Vanilla GUIs do not show them. Middle-click pick copies the tier and the installed module, not stored FE. Ctrl-pick uses the vanilla block-entity copy (energy included).
+
+Unused generator input/output slots and the electric fuel slot are covered by copying the adjacent furnace GUI texture, so a resource pack that recolors the furnace GUI stays consistent.
+
+Default IO when a module is installed (you can still reconfigure):
+
+- Generator: Fuel, Energy output, or Disabled. Top fuel, Bottom and sides energy output.
+- Electric: Input, Output, Energy input, or Disabled (no Fuel). Top input, Bottom output, Sides energy input.
+
+Energy input and output have their own IO icons.
+
+Default datapack values:
+
+- capacity `8000 * batch_size`
+- JSON generate/consume = `20` FE/t at copper, then +20 per tier (40 ... 200 at netherite)
+- in-game generator output is `energy_generate / 4` (5 FE/t copper, 50 FE/t netherite); electric still consumes the JSON value
+- generator install: 8 coal blocks + 15 XP
+- electric install: 8 comparators + 15 XP
+
+Forge Energy (`IEnergyStorage`) on both loaders.
 
 ---
 
@@ -145,6 +189,14 @@ Furnace-family shape:
 
 ```json
 {
+  "generator_cost": {
+    "items": [{ "count": 8, "item": "minecraft:coal_block" }],
+    "experience_levels": 5
+  },
+  "electric_cost": {
+    "items": [{ "count": 8, "item": "minecraft:comparator" }],
+    "experience_levels": 15
+  },
   "levels": [
     {
       "level": 1,
@@ -165,7 +217,10 @@ Furnace-family shape:
         "experience_levels": 2
       },
       "cook_time": 200,
-      "batch_size": 1
+      "batch_size": 1,
+      "energy_capacity": 8000,
+      "energy_generate": 20,
+      "energy_consume": 20
     }
   ]
 }
@@ -209,6 +264,10 @@ Brewing stand uses `required_brews` and `brew_time` instead of `required_cooks` 
 | `upgrade_cost.experience_levels` | Optional, default 0. |
 | `cook_time` / `brew_time` | Ticks per cycle, `>= 1`. Vanilla furnace 200, vanilla brewing 400. |
 | `batch_size` | Items or potions per slot per cycle, `>= 1`. |
+| `energy_capacity` | Internal FE buffer size. Optional, default 0 (brewing). |
+| `energy_generate` | FE per lit tick with the generator module. In-game output is this value divided by 4 (fuel also burns 4× faster). Optional, default 0. |
+| `energy_consume` | FE per cook tick with the electric module. Optional, default 0. |
+| `generator_cost` / `electric_cost` | File-level install costs, same shape as `upgrade_cost`. Optional, default empty. |
 
 Missing file, empty list, or a parse error: that machine falls back to the shipped defaults and a warning is logged. The game does not crash.
 
@@ -216,9 +275,9 @@ Missing file, empty list, or a parse error: that machine falls back to the shipp
 
 ## Recipe viewers and Jade
 
-JEI, EMI and REI are optional. Each **enabled** machine type has a category you can step through with the arrows (Shift jumps 10). In JEI, click an upgrade item to see its recipes. Disabled machines are omitted.
+JEI, EMI and REI are optional. There is one upgrade category per evolving machine (furnace, blast furnace, smoker, brewing stand), plus one category per energy module: **Generator Upgrades** (furnace catalysts, generator button icon) and **Electric Upgrades** (furnace / blast furnace / smoker catalysts, electric button icon). Each page shows install cost, generate or consume rate, and capacity. Hover the module button for its name. Step through tiers with the arrows (Shift jumps 10). In JEI, furnaces and upgrade items inside the category are real slots (bookmark, recipes, uses); there is one recipe per tier. Disabled machines and disabled energy modules are omitted.
 
-Jade shows the current tier name.
+Jade shows the current tier name, the active energy module, and stored FE.
 
 ---
 

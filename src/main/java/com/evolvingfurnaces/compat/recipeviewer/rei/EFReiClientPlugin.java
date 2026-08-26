@@ -6,6 +6,7 @@ import com.evolvingfurnaces.client.gui.EFVanillaInfoOverlay;
 import com.evolvingfurnaces.client.gui.EvolvingBrewingStandScreen;
 import com.evolvingfurnaces.client.gui.EvolvingMachineScreen;
 import com.evolvingfurnaces.compat.recipeviewer.EFRecipeViewer;
+import com.evolvingfurnaces.machine.EFEnergyModule;
 import com.evolvingfurnaces.machine.EvolvingMachineItem;
 import com.evolvingfurnaces.registry.EFItems;
 import com.evolvingfurnaces.tier.EFMachineKind;
@@ -51,10 +52,37 @@ public final class EFReiClientPlugin implements REIClientPlugin {
             if (!EFConfig.enabled(kind)) {
                 continue;
             }
-            registry.add(new EFRecipeViewerReiCategory(kind));
+            registry.add(new EFRecipeViewerReiCategory(kind, EFEnergyModule.NONE));
             for (EFMachineTier tier : EFTierManager.listClient(kind).levels()) {
                 ItemStack stack = EvolvingMachineItem.withLevel(EFItems.item(kind), tier.level());
                 registry.addWorkstations(EFRecipeViewerReiCategory.id(kind), EntryStacks.of(stack));
+            }
+        }
+        addModuleCategory(registry, EFEnergyModule.GENERATOR);
+        addModuleCategory(registry, EFEnergyModule.ELECTRIC);
+    }
+
+    private static void addModuleCategory(CategoryRegistry registry, EFEnergyModule module) {
+        boolean show = module == EFEnergyModule.GENERATOR
+                ? EFRecipeViewer.showGeneratorCategory()
+                : EFRecipeViewer.showElectricCategory();
+        if (!show) {
+            return;
+        }
+        registry.add(new EFRecipeViewerReiCategory(EFMachineKind.FURNACE, module));
+        for (EFMachineKind kind : EFMachineKind.values()) {
+            if (!EFConfig.enabled(kind)) {
+                continue;
+            }
+            if (module == EFEnergyModule.GENERATOR && kind != EFMachineKind.FURNACE) {
+                continue;
+            }
+            if (module == EFEnergyModule.ELECTRIC && !kind.isCooking()) {
+                continue;
+            }
+            for (EFMachineTier tier : EFTierManager.listClient(kind).levels()) {
+                ItemStack stack = EvolvingMachineItem.withLevel(EFItems.item(kind), tier.level());
+                registry.addWorkstations(EFRecipeViewerReiCategory.moduleId(module), EntryStacks.of(stack));
             }
         }
     }
@@ -65,7 +93,13 @@ public final class EFReiClientPlugin implements REIClientPlugin {
             if (!EFConfig.enabled(kind)) {
                 continue;
             }
-            registry.add(new EFRecipeViewerReiDisplay(kind));
+            registry.add(new EFRecipeViewerReiDisplay(kind, EFEnergyModule.NONE));
+        }
+        if (EFRecipeViewer.showGeneratorCategory()) {
+            registry.add(new EFRecipeViewerReiDisplay(EFMachineKind.FURNACE, EFEnergyModule.GENERATOR));
+        }
+        if (EFRecipeViewer.showElectricCategory()) {
+            registry.add(new EFRecipeViewerReiDisplay(EFMachineKind.FURNACE, EFEnergyModule.ELECTRIC));
         }
     }
 
@@ -99,7 +133,7 @@ public final class EFReiClientPlugin implements REIClientPlugin {
         return areas;
     }
 
-    public record EFRecipeViewerReiDisplay(EFMachineKind kind) implements Display {
+    public record EFRecipeViewerReiDisplay(EFMachineKind kind, EFEnergyModule module) implements Display {
         @Override
         public List<EntryIngredient> getInputEntries() {
             return List.of();
@@ -112,34 +146,62 @@ public final class EFReiClientPlugin implements REIClientPlugin {
 
         @Override
         public CategoryIdentifier<?> getCategoryIdentifier() {
-            return EFRecipeViewerReiCategory.id(kind);
+            return module.installed() ? EFRecipeViewerReiCategory.moduleId(module) : EFRecipeViewerReiCategory.id(kind);
         }
     }
 
     public static final class EFRecipeViewerReiCategory implements DisplayCategory<EFRecipeViewerReiDisplay> {
-        private final EFMachineKind kind;
+        private static final java.util.EnumMap<EFMachineKind, CategoryIdentifier<EFRecipeViewerReiDisplay>> IDS =
+                new java.util.EnumMap<>(EFMachineKind.class);
 
-        public EFRecipeViewerReiCategory(EFMachineKind kind) {
-            this.kind = kind;
+        static {
+            for (EFMachineKind kind : EFMachineKind.values()) {
+                IDS.put(kind, CategoryIdentifier.of(EFConstants.MOD_ID, kind.id() + "_upgrades"));
+            }
         }
 
+        public static final CategoryIdentifier<EFRecipeViewerReiDisplay> GENERATOR_ID =
+                CategoryIdentifier.of(EFConstants.MOD_ID, "generator_upgrades");
+        public static final CategoryIdentifier<EFRecipeViewerReiDisplay> ELECTRIC_ID =
+                CategoryIdentifier.of(EFConstants.MOD_ID, "electric_upgrades");
+
         public static CategoryIdentifier<EFRecipeViewerReiDisplay> id(EFMachineKind kind) {
-            return CategoryIdentifier.of(EFConstants.MOD_ID, kind.id() + "_tiers");
+            return IDS.get(kind);
+        }
+
+        public static CategoryIdentifier<EFRecipeViewerReiDisplay> moduleId(EFEnergyModule module) {
+            return module == EFEnergyModule.ELECTRIC ? ELECTRIC_ID : GENERATOR_ID;
+        }
+
+        private final EFMachineKind kind;
+        private final EFEnergyModule module;
+
+        public EFRecipeViewerReiCategory(EFMachineKind kind, EFEnergyModule module) {
+            this.kind = kind;
+            this.module = module;
         }
 
         @Override
         public CategoryIdentifier<? extends EFRecipeViewerReiDisplay> getCategoryIdentifier() {
-            return id(kind);
+            return module.installed() ? moduleId(module) : id(kind);
         }
 
         @Override
         public Component getTitle() {
-            return EFRecipeViewer.title(kind);
+            return module.installed() ? EFRecipeViewer.moduleTitle(module) : EFRecipeViewer.title(kind);
         }
 
         @Override
         public Renderer getIcon() {
-            return EntryStacks.of(EvolvingMachineItem.withLevel(EFItems.item(kind), 1));
+            if (!module.installed()) {
+                return EntryStacks.of(EvolvingMachineItem.withLevel(EFItems.item(kind), 1));
+            }
+            return new Renderer() {
+                @Override
+                public void render(GuiGraphics graphics, Rectangle bounds, int mouseX, int mouseY, float delta) {
+                    EFRecipeViewer.blitModuleIcon(graphics, bounds.x, bounds.y, module);
+                }
+            };
         }
 
         @Override
@@ -156,17 +218,19 @@ public final class EFReiClientPlugin implements REIClientPlugin {
         public List<Widget> setupDisplay(EFRecipeViewerReiDisplay display, Rectangle bounds) {
             return List.of(
                     Widgets.createRecipeBase(bounds),
-                    new ViewerWidget(display.kind(), new Rectangle(bounds.x + 4, bounds.y + 4, EFRecipeViewer.WIDTH, EFRecipeViewer.HEIGHT))
+                    new ViewerWidget(display.kind(), display.module(), new Rectangle(bounds.x + 4, bounds.y + 4, EFRecipeViewer.WIDTH, EFRecipeViewer.HEIGHT))
             );
         }
     }
 
     private static final class ViewerWidget extends WidgetWithBounds {
         private final EFMachineKind kind;
+        private final EFEnergyModule module;
         private final Rectangle bounds;
 
-        private ViewerWidget(EFMachineKind kind, Rectangle bounds) {
+        private ViewerWidget(EFMachineKind kind, EFEnergyModule module, Rectangle bounds) {
             this.kind = kind;
+            this.module = module;
             this.bounds = bounds;
         }
 
@@ -179,11 +243,17 @@ public final class EFReiClientPlugin implements REIClientPlugin {
         public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
             graphics.pose().pushPose();
             graphics.pose().translate(bounds.x, bounds.y, 0);
-            EFRecipeViewer.draw(graphics, Minecraft.getInstance().font, kind, mouseX - bounds.x, mouseY - bounds.y);
+            if (module.installed()) {
+                EFRecipeViewer.drawModule(graphics, Minecraft.getInstance().font, module, mouseX - bounds.x, mouseY - bounds.y);
+            } else {
+                EFRecipeViewer.draw(graphics, Minecraft.getInstance().font, kind, mouseX - bounds.x, mouseY - bounds.y);
+            }
             graphics.pose().popPose();
-            ItemStack stack = EFRecipeViewer.hoveredStack(kind, mouseX - bounds.x, mouseY - bounds.y);
-            if (!stack.isEmpty()) {
-                Tooltip.create(new Point(mouseX, mouseY), EFRecipeViewer.tooltipLines(stack)).queue();
+            List<Component> lines = module.installed()
+                    ? EFRecipeViewer.hoveredModuleTooltip(module, mouseX - bounds.x, mouseY - bounds.y)
+                    : EFRecipeViewer.tooltipLines(EFRecipeViewer.hoveredStack(kind, mouseX - bounds.x, mouseY - bounds.y));
+            if (!lines.isEmpty()) {
+                Tooltip.create(new Point(mouseX, mouseY), lines).queue();
             }
         }
 

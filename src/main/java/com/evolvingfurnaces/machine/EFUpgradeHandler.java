@@ -5,6 +5,7 @@ import com.evolvingfurnaces.registry.EFBlocks;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import com.evolvingfurnaces.tier.EFMachineTier;
 import com.evolvingfurnaces.tier.EFTierManager;
+import com.evolvingfurnaces.tier.EFUpgradeCost;
 import java.util.List;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.HolderLookup;
@@ -104,6 +105,62 @@ public final class EFUpgradeHandler {
             return false;
         }
         return EFPlayerCosts.canAffordItems(player, next.upgradeCost().items());
+    }
+
+    public static boolean tryInstallModule(ServerPlayer player, BlockPos pos, EFEnergyModule module, boolean shift) {
+        ServerLevel level = player.serverLevel();
+        if (!level.isLoaded(pos) || player.distanceToSqr(pos.getCenter()) > 64.0D) {
+            return false;
+        }
+        if (!(level.getBlockEntity(pos) instanceof EvolvingMachineBlockEntity machine)) {
+            return false;
+        }
+        if (!module.installed()) {
+            if (!shift || !machine.energyModule().installed()) {
+                return false;
+            }
+            machine.setEnergyModule(EFEnergyModule.NONE);
+            level.playSound(null, pos, SoundEvents.PLAYER_LEVELUP, SoundSource.BLOCKS, 0.4F, 0.6F);
+            return true;
+        }
+        if (!EFConfig.moduleAvailable(machine.kind(), module)) {
+            return false;
+        }
+        if (machine.energyModule() == module) {
+            return false;
+        }
+        if (machine.energyModule().installed() && !shift) {
+            return false;
+        }
+        EFUpgradeCost cost = EFTierManager.list(machine.kind()).moduleCost(module);
+        boolean creative = player.getAbilities().instabuild;
+        if (!creative) {
+            if (!EFPlayerCosts.canAffordXp(player, cost.experienceLevels())) {
+                return false;
+            }
+            if (!EFPlayerCosts.canAffordItems(player, cost.items())) {
+                return false;
+            }
+        }
+        EFPlayerCosts.pay(player, cost.items(), cost.experienceLevels());
+        machine.ejectUnusedSlots(player, module);
+        machine.setEnergyModule(module);
+        level.playSound(null, pos, SoundEvents.PLAYER_LEVELUP, SoundSource.BLOCKS, 0.6F, 1.4F);
+        return true;
+    }
+
+    public static boolean canInstallModuleClient(Player player, EFMachineKind kind, EFEnergyModule current, EFEnergyModule target) {
+        if (!target.installed() || current == target || !EFConfig.enabled(kind) || !EFConfig.moduleAvailable(kind, target)) {
+            return false;
+        }
+        if (player.getAbilities().instabuild) {
+            return true;
+        }
+        EFUpgradeCost cost = EFTierManager.listClient(kind).moduleCost(target);
+        if (!EFPlayerCosts.canAffordXp(player, cost.experienceLevels())) {
+            return false;
+        }
+        return EFPlayerCosts.canAffordItems(player, cost.items());
     }
 
     private static void convertVanillaFurnace(

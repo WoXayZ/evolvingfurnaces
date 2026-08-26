@@ -6,6 +6,7 @@ import com.evolvingfurnaces.client.gui.EFVanillaInfoOverlay;
 import com.evolvingfurnaces.client.gui.EvolvingBrewingStandScreen;
 import com.evolvingfurnaces.client.gui.EvolvingMachineScreen;
 import com.evolvingfurnaces.compat.recipeviewer.EFRecipeViewer;
+import com.evolvingfurnaces.machine.EFEnergyModule;
 import com.evolvingfurnaces.machine.EvolvingMachineItem;
 import com.evolvingfurnaces.registry.EFItems;
 import com.evolvingfurnaces.tier.EFMachineKind;
@@ -48,14 +49,16 @@ public final class EFEmiPlugin implements EmiPlugin {
                 continue;
             }
             EmiRecipeCategory category = new EmiRecipeCategory(
-                    EFConstants.id("recipe_viewer/" + kind.id()),
+                    EFRecipeViewer.categoryId(kind),
                     EmiStack.of(EvolvingMachineItem.withLevel(EFItems.item(kind), 1)));
             registry.addCategory(category);
             for (EFMachineTier tier : EFTierManager.listClient(kind).levels()) {
                 registry.addWorkstation(category, EmiStack.of(EvolvingMachineItem.withLevel(EFItems.item(kind), tier.level())));
             }
-            registry.addRecipe(new EFEmiTierRecipe(kind, category));
+            registry.addRecipe(new EFEmiTierRecipe(kind, category, EFEnergyModule.NONE));
         }
+        addModuleCategory(registry, EFEnergyModule.GENERATOR);
+        addModuleCategory(registry, EFEnergyModule.ELECTRIC);
         registry.addExclusionArea(EvolvingMachineScreen.class, (screen, consumer) -> {
             for (Rect2i area : screen.guiExtraAreas()) {
                 consumer.accept(new Bounds(area.getX(), area.getY(), area.getWidth(), area.getHeight()));
@@ -72,13 +75,43 @@ public final class EFEmiPlugin implements EmiPlugin {
         registry.addExclusionArea(BrewingStandScreen.class, EFEmiPlugin::vanillaExclusion);
     }
 
+    private static void addModuleCategory(EmiRegistry registry, EFEnergyModule module) {
+        boolean show = module == EFEnergyModule.GENERATOR
+                ? EFRecipeViewer.showGeneratorCategory()
+                : EFRecipeViewer.showElectricCategory();
+        if (!show) {
+            return;
+        }
+        EmiRecipeCategory category = new EmiRecipeCategory(
+                EFRecipeViewer.moduleCategoryId(module),
+                (graphics, x, y, delta) -> EFRecipeViewer.blitModuleIcon(graphics, x, y, module));
+        registry.addCategory(category);
+        for (EFMachineKind kind : EFMachineKind.values()) {
+            if (!EFConfig.enabled(kind)) {
+                continue;
+            }
+            if (module == EFEnergyModule.GENERATOR && kind != EFMachineKind.FURNACE) {
+                continue;
+            }
+            if (module == EFEnergyModule.ELECTRIC && !kind.isCooking()) {
+                continue;
+            }
+            for (EFMachineTier tier : EFTierManager.listClient(kind).levels()) {
+                registry.addWorkstation(
+                        category,
+                        EmiStack.of(EvolvingMachineItem.withLevel(EFItems.item(kind), tier.level())));
+            }
+        }
+        registry.addRecipe(new EFEmiTierRecipe(EFMachineKind.FURNACE, category, module));
+    }
+
     private static void vanillaExclusion(AbstractContainerScreen<?> screen, Consumer<Bounds> consumer) {
         for (Rect2i area : EFVanillaInfoOverlay.extraAreas(screen)) {
             consumer.accept(new Bounds(area.getX(), area.getY(), area.getWidth(), area.getHeight()));
         }
     }
 
-    private record EFEmiTierRecipe(EFMachineKind kind, EmiRecipeCategory category) implements EmiRecipe {
+    private record EFEmiTierRecipe(EFMachineKind kind, EmiRecipeCategory category, EFEnergyModule module) implements EmiRecipe {
         @Override
         public EmiRecipeCategory getCategory() {
             return category;
@@ -86,18 +119,31 @@ public final class EFEmiPlugin implements EmiPlugin {
 
         @Override
         public ResourceLocation getId() {
-            return EFConstants.id("recipe_viewer/" + kind.id());
+            return module.installed()
+                    ? EFConstants.id("recipe_viewer/" + module.getSerializedName())
+                    : EFConstants.id("recipe_viewer/" + kind.id());
         }
 
         @Override
         public List<EmiIngredient> getInputs() {
+            if (module.installed()) {
+                java.util.ArrayList<EmiIngredient> inputs = new java.util.ArrayList<>();
+                var list = EFTierManager.listClient(kind);
+                var cost = module == EFEnergyModule.GENERATOR ? list.generatorCost() : list.electricCost();
+                for (var item : cost.items()) {
+                    inputs.add(EmiStack.of(item.displayStack()));
+                }
+                return inputs;
+            }
             EFMachineTier tier = EFRecipeViewer.current(kind);
             if (tier == null) {
                 return List.of();
             }
-            return tier.upgradeCost().items().stream()
-                    .<EmiIngredient>map(cost -> EmiStack.of(cost.displayStack()))
-                    .toList();
+            java.util.ArrayList<EmiIngredient> inputs = new java.util.ArrayList<>();
+            for (var cost : tier.upgradeCost().items()) {
+                inputs.add(EmiStack.of(cost.displayStack()));
+            }
+            return inputs;
         }
 
         @Override
@@ -117,16 +163,18 @@ public final class EFEmiPlugin implements EmiPlugin {
 
         @Override
         public void addWidgets(WidgetHolder widgets) {
-            widgets.add(new ViewerWidget(kind));
+            widgets.add(new ViewerWidget(kind, module));
         }
     }
 
     private static final class ViewerWidget extends Widget {
         private final EFMachineKind kind;
+        private final EFEnergyModule module;
         private final Bounds bounds = new Bounds(0, 0, EFRecipeViewer.WIDTH, EFRecipeViewer.HEIGHT);
 
-        private ViewerWidget(EFMachineKind kind) {
+        private ViewerWidget(EFMachineKind kind, EFEnergyModule module) {
             this.kind = kind;
+            this.module = module;
         }
 
         @Override
@@ -136,16 +184,22 @@ public final class EFEmiPlugin implements EmiPlugin {
 
         @Override
         public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-            EFRecipeViewer.draw(graphics, Minecraft.getInstance().font, kind, mouseX, mouseY);
+            if (module.installed()) {
+                EFRecipeViewer.drawModule(graphics, Minecraft.getInstance().font, module, mouseX, mouseY);
+            } else {
+                EFRecipeViewer.draw(graphics, Minecraft.getInstance().font, kind, mouseX, mouseY);
+            }
         }
 
         @Override
         public List<ClientTooltipComponent> getTooltip(int mouseX, int mouseY) {
-            ItemStack stack = EFRecipeViewer.hoveredStack(kind, mouseX, mouseY);
-            if (stack.isEmpty()) {
+            List<net.minecraft.network.chat.Component> lines = module.installed()
+                    ? EFRecipeViewer.hoveredModuleTooltip(module, mouseX, mouseY)
+                    : EFRecipeViewer.tooltipLines(EFRecipeViewer.hoveredStack(kind, mouseX, mouseY));
+            if (lines.isEmpty()) {
                 return List.of();
             }
-            return EFRecipeViewer.tooltipLines(stack).stream()
+            return lines.stream()
                     .map(line -> ClientTooltipComponent.create(line.getVisualOrderText()))
                     .toList();
         }

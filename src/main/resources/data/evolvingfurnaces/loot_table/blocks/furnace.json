@@ -12,7 +12,7 @@
             {
               "function": "minecraft:copy_components",
               "source": "block_entity",
-              "include": ["evolvingfurnaces:machine_level"]
+              "include": ["evolvingfurnaces:machine_level", "evolvingfurnaces:energy_module", "evolvingfurnaces:energy_stored"]
             },
             {
               "function": "minecraft:copy_name",

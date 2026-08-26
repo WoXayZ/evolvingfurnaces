@@ -111,7 +111,7 @@ public final class EFBrewingIoHandler implements IItemHandler {
         return switch (role) {
             case INPUT -> slot == EvolvingBrewingStandBlockEntity.SLOT_INGREDIENT || machine.isPotionSlot(slot);
             case FUEL -> slot == EvolvingBrewingStandBlockEntity.SLOT_FUEL;
-            case OUTPUT, DISABLED -> false;
+            case OUTPUT, DISABLED, ENERGY -> false;
         };
     }
 
@@ -123,7 +123,7 @@ public final class EFBrewingIoHandler implements IItemHandler {
         return switch (role) {
             case OUTPUT -> machine.isPotionSlot(slot);
             case FUEL -> slot == EvolvingBrewingStandBlockEntity.SLOT_FUEL;
-            case INPUT, DISABLED -> false;
+            case INPUT, DISABLED, ENERGY -> false;
         };
     }
 }

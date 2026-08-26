@@ -24,3 +24,8 @@ bin/
 # OS
 .DS_Store
 Thumbs.db
+
+releases/
+
+# Scratch texture dumps (not shipped)
+**/*-tmp/

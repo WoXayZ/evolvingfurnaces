@@ -1,5 +1,6 @@
 package com.evolvingfurnaces.client.render;
 
+import com.evolvingfurnaces.machine.EFEnergyModule;
 import com.evolvingfurnaces.machine.EvolvingMachineBlockEntity;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import com.evolvingfurnaces.tier.EFMachineTier;
@@ -33,13 +34,22 @@ public class EvolvingMachineRenderer implements BlockEntityRenderer<EvolvingMach
             int packedLight,
             int packedOverlay
     ) {
-        renderOverlay(machine.kind(), machine.machineLevel(), machine.getBlockState(), poseStack, buffers, packedLight, packedOverlay);
+        renderOverlay(
+                machine.kind(),
+                machine.machineLevel(),
+                machine.getBlockState(),
+                machine.energyModule(),
+                poseStack,
+                buffers,
+                packedLight,
+                packedOverlay);
     }
 
     public static void renderOverlay(
             EFMachineKind kind,
             int machineLevel,
             BlockState state,
+            EFEnergyModule module,
             PoseStack poseStack,
             MultiBufferSource buffers,
             int packedLight,
@@ -71,7 +81,7 @@ public class EvolvingMachineRenderer implements BlockEntityRenderer<EvolvingMach
         float y1 = 1F + EXPAND;
         float z1 = 1F + EXPAND;
         for (Direction face : Direction.values()) {
-            ResourceLocation texture = EFMachineTextureCompositor.texture(kind, tier, face, lit);
+            ResourceLocation texture = EFMachineTextureCompositor.texture(kind, tier, face, lit, module);
             VertexConsumer consumer = buffers.getBuffer(RenderType.entityCutoutNoCull(texture));
             renderFace(pose, consumer, face, x0, y0, z0, x1, y1, z1, light, packedOverlay);
         }

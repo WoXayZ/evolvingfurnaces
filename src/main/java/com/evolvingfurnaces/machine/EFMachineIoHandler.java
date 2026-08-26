@@ -99,7 +99,7 @@ public final class EFMachineIoHandler implements IItemHandler {
         return switch (role) {
             case INPUT -> slot == INPUT;
             case FUEL -> slot == FUEL;
-            case OUTPUT, DISABLED -> false;
+            case OUTPUT, DISABLED, ENERGY -> false;
         };
     }
 
@@ -111,7 +111,7 @@ public final class EFMachineIoHandler implements IItemHandler {
         return switch (role) {
             case OUTPUT -> slot == OUTPUT;
             case FUEL -> slot == FUEL;
-            case INPUT, DISABLED -> false;
+            case INPUT, DISABLED, ENERGY -> false;
         };
     }
 }

@@ -69,6 +69,9 @@ public class EvolvingMachineBlock extends AbstractFurnaceBlock {
         ItemStack stack = new ItemStack(this);
         if (level.getBlockEntity(pos) instanceof EvolvingMachineBlockEntity machine) {
             stack.set(EFDataComponents.MACHINE_LEVEL.get(), machine.machineLevel());
+            if (machine.energyModule().installed()) {
+                stack.set(EFDataComponents.ENERGY_MODULE.get(), machine.energyModule());
+            }
         }
         return stack;
     }
@@ -96,6 +99,10 @@ public class EvolvingMachineBlock extends AbstractFurnaceBlock {
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
         if (!state.getValue(LIT)) {
+            return;
+        }
+        if (level.getBlockEntity(pos) instanceof EvolvingMachineBlockEntity machine
+                && machine.energyModule() == EFEnergyModule.ELECTRIC) {
             return;
         }
         double x = pos.getX() + 0.5;

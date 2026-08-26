@@ -67,6 +67,13 @@ public final class EFPlayerCosts {
         }
     }
 
+    public static void giveOrDrop(Player player, ItemStack stack) {
+        if (stack.isEmpty()) {
+            return;
+        }
+        player.getInventory().placeItemBackInInventory(stack);
+    }
+
     private static int extractFromList(net.minecraft.core.NonNullList<ItemStack> stacks, EFCostIngredient cost, int amount) {
         int taken = 0;
         for (int i = 0; i < stacks.size() && taken < amount; i++) {

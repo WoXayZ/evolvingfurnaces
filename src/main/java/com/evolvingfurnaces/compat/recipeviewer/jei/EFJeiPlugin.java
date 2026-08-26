@@ -6,6 +6,7 @@ import com.evolvingfurnaces.client.gui.EFVanillaInfoOverlay;
 import com.evolvingfurnaces.client.gui.EvolvingBrewingStandScreen;
 import com.evolvingfurnaces.client.gui.EvolvingMachineScreen;
 import com.evolvingfurnaces.compat.recipeviewer.EFRecipeViewer;
+import com.evolvingfurnaces.machine.EFEnergyModule;
 import com.evolvingfurnaces.machine.EvolvingMachineItem;
 import com.evolvingfurnaces.registry.EFItems;
 import com.evolvingfurnaces.tier.EFMachineKind;
@@ -15,7 +16,6 @@ import com.mojang.blaze3d.platform.InputConstants;
 import java.util.List;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
-import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.builder.ITooltipBuilder;
@@ -38,6 +38,7 @@ import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.BlastFurnaceScreen;
 import net.minecraft.client.gui.screens.inventory.BrewingStandScreen;
@@ -72,21 +73,37 @@ public final class EFJeiPlugin implements IModPlugin {
     @Override
     public void registerCategories(IRecipeCategoryRegistration registration) {
         IJeiHelpers helpers = registration.getJeiHelpers();
+        java.util.ArrayList<IRecipeCategory<?>> categories = new java.util.ArrayList<>();
         for (EFMachineKind kind : EFMachineKind.values()) {
-            if (!EFConfig.enabled(kind)) {
-                continue;
+            if (EFConfig.enabled(kind)) {
+                categories.add(new EFRecipeViewerJeiCategory(helpers, kind, EFEnergyModule.NONE));
             }
-            registration.addRecipeCategories(new EFRecipeViewerJeiCategory(helpers, kind));
         }
+        if (EFRecipeViewer.showGeneratorCategory()) {
+            categories.add(new EFRecipeViewerJeiCategory(helpers, EFMachineKind.FURNACE, EFEnergyModule.GENERATOR));
+        }
+        if (EFRecipeViewer.showElectricCategory()) {
+            categories.add(new EFRecipeViewerJeiCategory(helpers, EFMachineKind.FURNACE, EFEnergyModule.ELECTRIC));
+        }
+        registration.addRecipeCategories(categories.toArray(IRecipeCategory[]::new));
     }
 
     @Override
     public void registerRecipes(IRecipeRegistration registration) {
         for (EFMachineKind kind : EFMachineKind.values()) {
-            if (!EFConfig.enabled(kind)) {
-                continue;
+            if (EFConfig.enabled(kind)) {
+                registration.addRecipes(EFRecipeViewerJeiCategory.type(kind), EFTierManager.listClient(kind).levels());
             }
-            registration.addRecipes(EFRecipeViewerJeiCategory.type(kind), List.of(kind));
+        }
+        if (EFRecipeViewer.showGeneratorCategory()) {
+            registration.addRecipes(
+                    EFRecipeViewerJeiCategory.GENERATOR_TYPE,
+                    EFTierManager.listClient(EFMachineKind.FURNACE).levels());
+        }
+        if (EFRecipeViewer.showElectricCategory()) {
+            registration.addRecipes(
+                    EFRecipeViewerJeiCategory.ELECTRIC_TYPE,
+                    EFTierManager.listClient(EFMachineKind.FURNACE).levels());
         }
     }
 
@@ -96,14 +113,15 @@ public final class EFJeiPlugin implements IModPlugin {
             if (!EFConfig.enabled(kind)) {
                 continue;
             }
+            var type = EFRecipeViewerJeiCategory.type(kind);
             for (EFMachineTier tier : EFTierManager.listClient(kind).levels()) {
                 ItemStack stack = EvolvingMachineItem.withLevel(EFItems.item(kind), tier.level());
-                registration.addRecipeCatalyst(stack, EFRecipeViewerJeiCategory.type(kind));
-                switch (kind) {
-                    case FURNACE -> registration.addRecipeCatalyst(stack, RecipeTypes.SMELTING);
-                    case BLAST_FURNACE -> registration.addRecipeCatalyst(stack, RecipeTypes.BLASTING);
-                    case SMOKER -> registration.addRecipeCatalyst(stack, RecipeTypes.SMOKING);
-                    case BREWING_STAND -> registration.addRecipeCatalyst(stack, RecipeTypes.BREWING);
+                registration.addRecipeCatalyst(stack, type);
+                if (kind == EFMachineKind.FURNACE && EFRecipeViewer.showGeneratorCategory()) {
+                    registration.addRecipeCatalyst(stack, EFRecipeViewerJeiCategory.GENERATOR_TYPE);
+                }
+                if (kind.isCooking() && EFRecipeViewer.showElectricCategory()) {
+                    registration.addRecipeCatalyst(stack, EFRecipeViewerJeiCategory.ELECTRIC_TYPE);
                 }
             }
         }
@@ -141,45 +159,72 @@ public final class EFJeiPlugin implements IModPlugin {
         });
     }
 
-    public static final class EFRecipeViewerJeiCategory implements IRecipeCategory<EFMachineKind> {
+    public static final class EFRecipeViewerJeiCategory implements IRecipeCategory<EFMachineTier> {
 
-        private static final RecipeType<EFMachineKind> FURNACE =
-                RecipeType.create(EFConstants.MOD_ID, "furnace_tiers", EFMachineKind.class);
-        private static final RecipeType<EFMachineKind> BLAST =
-                RecipeType.create(EFConstants.MOD_ID, "blast_furnace_tiers", EFMachineKind.class);
-        private static final RecipeType<EFMachineKind> SMOKER =
-                RecipeType.create(EFConstants.MOD_ID, "smoker_tiers", EFMachineKind.class);
-        private static final RecipeType<EFMachineKind> BREWING =
-                RecipeType.create(EFConstants.MOD_ID, "brewing_stand_tiers", EFMachineKind.class);
+        private static final java.util.EnumMap<EFMachineKind, RecipeType<EFMachineTier>> TYPES =
+                new java.util.EnumMap<>(EFMachineKind.class);
 
-        private final EFMachineKind kind;
+        static {
+            for (EFMachineKind kind : EFMachineKind.values()) {
+                TYPES.put(kind, RecipeType.create(EFConstants.MOD_ID, kind.id() + "_upgrades", EFMachineTier.class));
+            }
+        }
+
+        public static final RecipeType<EFMachineTier> GENERATOR_TYPE =
+                RecipeType.create(EFConstants.MOD_ID, "generator_upgrades", EFMachineTier.class);
+        public static final RecipeType<EFMachineTier> ELECTRIC_TYPE =
+                RecipeType.create(EFConstants.MOD_ID, "electric_upgrades", EFMachineTier.class);
+
+        public static RecipeType<EFMachineTier> type(EFMachineKind kind) {
+            return TYPES.get(kind);
+        }
+
+        private static RecipeType<EFMachineTier> extraType(EFEnergyModule module) {
+            return module == EFEnergyModule.ELECTRIC ? ELECTRIC_TYPE : GENERATOR_TYPE;
+        }
+
         private final IJeiHelpers helpers;
+        private final RecipeType<EFMachineTier> type;
+        private final EFMachineKind kind;
+        private final EFEnergyModule module;
         private final IDrawable icon;
 
-        public EFRecipeViewerJeiCategory(IJeiHelpers helpers, EFMachineKind kind) {
-            this.kind = kind;
+        public EFRecipeViewerJeiCategory(IJeiHelpers helpers, EFMachineKind kind, EFEnergyModule module) {
             this.helpers = helpers;
-            this.icon = helpers.getGuiHelper().createDrawableIngredient(
+            this.kind = kind;
+            this.module = module;
+            this.type = module.installed() ? extraType(module) : type(kind);
+            this.icon = module.installed() ? moduleIcon(module) : helpers.getGuiHelper().createDrawableIngredient(
                     VanillaTypes.ITEM_STACK, EvolvingMachineItem.withLevel(EFItems.item(kind), 1));
         }
 
-        public static RecipeType<EFMachineKind> type(EFMachineKind kind) {
-            return switch (kind) {
-                case FURNACE -> FURNACE;
-                case BLAST_FURNACE -> BLAST;
-                case SMOKER -> SMOKER;
-                case BREWING_STAND -> BREWING;
+        private static IDrawable moduleIcon(EFEnergyModule module) {
+            return new IDrawable() {
+                @Override
+                public int getWidth() {
+                    return 16;
+                }
+
+                @Override
+                public int getHeight() {
+                    return 16;
+                }
+
+                @Override
+                public void draw(GuiGraphics graphics, int xOffset, int yOffset) {
+                    EFRecipeViewer.blitModuleIcon(graphics, xOffset, yOffset, module);
+                }
             };
         }
 
         @Override
-        public RecipeType<EFMachineKind> getRecipeType() {
-            return type(kind);
+        public RecipeType<EFMachineTier> getRecipeType() {
+            return type;
         }
 
         @Override
         public Component getTitle() {
-            return EFRecipeViewer.title(kind);
+            return module.installed() ? EFRecipeViewer.moduleTitle(module) : EFRecipeViewer.title(kind);
         }
 
         @Override
@@ -198,35 +243,62 @@ public final class EFJeiPlugin implements IModPlugin {
         }
 
         @Override
-        public void setRecipe(IRecipeLayoutBuilder builder, EFMachineKind recipe, IFocusGroup focuses) {
-            builder.addInvisibleIngredients(RecipeIngredientRole.OUTPUT)
-                    .addItemStack(EvolvingMachineItem.withLevel(EFItems.item(recipe), 1));
-        }
-
-        @Override
-        public void draw(EFMachineKind recipe, IRecipeSlotsView slots, GuiGraphics graphics, double mouseX, double mouseY) {
-            EFRecipeViewer.draw(graphics, Minecraft.getInstance().font, recipe, mouseX, mouseY);
-        }
-
-        @Override
-        public void getTooltip(ITooltipBuilder tooltip, EFMachineKind recipe, IRecipeSlotsView slots, double mouseX, double mouseY) {
-            ItemStack stack = EFRecipeViewer.hoveredStack(recipe, mouseX, mouseY);
-            if (stack.isEmpty()) {
-                return;
+        public void setRecipe(IRecipeLayoutBuilder builder, EFMachineTier recipe, IFocusGroup focuses) {
+            if (module.installed()) {
+                var list = EFTierManager.listClient(kind);
+                var cost = module == EFEnergyModule.GENERATOR ? list.generatorCost() : list.electricCost();
+                int slotX = EFRecipeViewer.MODULE_ITEMS_X;
+                for (var item : cost.items()) {
+                    ItemStack stack = item.displayStack();
+                    if (stack.isEmpty()) {
+                        continue;
+                    }
+                    builder.addSlot(RecipeIngredientRole.INPUT, slotX, EFRecipeViewer.COST_Y).addItemStack(stack);
+                    slotX += EFRecipeViewer.SLOT_STEP;
+                }
+            } else {
+                int slotX = EFRecipeViewer.COST_X;
+                for (var item : recipe.upgradeCost().items()) {
+                    ItemStack stack = item.displayStack();
+                    if (stack.isEmpty()) {
+                        continue;
+                    }
+                    builder.addSlot(RecipeIngredientRole.INPUT, slotX, EFRecipeViewer.COST_Y).addItemStack(stack);
+                    slotX += EFRecipeViewer.SLOT_STEP;
+                }
             }
-            tooltip.addAll(EFRecipeViewer.tooltipLines(stack));
-            helpers.getIngredientManager()
-                    .createTypedIngredient(VanillaTypes.ITEM_STACK, stack, false)
-                    .ifPresent(tooltip::setIngredient);
+            builder.addSlot(RecipeIngredientRole.OUTPUT, EFRecipeViewer.MACHINE_X, EFRecipeViewer.COST_Y)
+                    .addItemStack(EvolvingMachineItem.withLevel(EFItems.item(kind), recipe.level()));
         }
 
         @Override
-        public @Nullable ResourceLocation getRegistryName(EFMachineKind recipe) {
-            return EFConstants.id("recipe_viewer/" + recipe.id());
+        public void draw(EFMachineTier recipe, IRecipeSlotsView slots, GuiGraphics graphics, double mouseX, double mouseY) {
+            if (module.installed()) {
+                EFRecipeViewer.drawModule(graphics, Minecraft.getInstance().font, module, recipe, mouseX, mouseY, false);
+            } else {
+                EFRecipeViewer.draw(graphics, Minecraft.getInstance().font, kind, recipe, mouseX, mouseY, false);
+            }
         }
 
         @Override
-        public void createRecipeExtras(IRecipeExtrasBuilder builder, EFMachineKind recipe, IFocusGroup focuses) {
+        public void getTooltip(ITooltipBuilder tooltip, EFMachineTier recipe, IRecipeSlotsView slots, double mouseX, double mouseY) {
+            if (module.installed()) {
+                Component name = EFRecipeViewer.hoveredModuleButton(module, mouseX, mouseY);
+                if (name != null) {
+                    tooltip.add(name);
+                }
+            }
+        }
+
+        @Override
+        public @Nullable ResourceLocation getRegistryName(EFMachineTier recipe) {
+            return module.installed()
+                    ? EFConstants.id("recipe_viewer/" + module.getSerializedName() + "/" + recipe.level())
+                    : EFConstants.id("recipe_viewer/" + kind.id() + "/" + recipe.level());
+        }
+
+        @Override
+        public void createRecipeExtras(IRecipeExtrasBuilder builder, EFMachineTier recipe, IFocusGroup focuses) {
             builder.addInputHandler(new IJeiInputHandler() {
                 @Override
                 public ScreenRectangle getArea() {
@@ -236,35 +308,28 @@ public final class EFJeiPlugin implements IModPlugin {
                 @Override
                 public boolean handleInput(double mouseX, double mouseY, IJeiUserInput input) {
                     int direction = EFRecipeViewer.navDirection(mouseX, mouseY);
-                    if (direction != 0) {
-                        if (input.getKey().getType() != InputConstants.Type.MOUSE || input.getKey().getValue() != 0) {
-                            return false;
-                        }
-                        if (!input.isSimulate()) {
-                            EFRecipeViewer.clickNav(recipe, mouseX, mouseY);
-                        }
-                        return true;
-                    }
-                    ItemStack stack = EFRecipeViewer.hoveredStack(recipe, mouseX, mouseY);
-                    if (stack.isEmpty() || runtime == null) {
+                    if (direction == 0) {
                         return false;
                     }
-                    RecipeIngredientRole role = null;
-                    var keys = runtime.getKeyMappings();
-                    if (keys.getShowRecipe().isActiveAndMatches(input.getKey())) {
-                        role = RecipeIngredientRole.OUTPUT;
-                    } else if (keys.getShowUses().isActiveAndMatches(input.getKey())) {
-                        role = RecipeIngredientRole.INPUT;
-                    }
-                    if (role == null) {
+                    if (input.getKey().getType() != InputConstants.Type.MOUSE || input.getKey().getValue() != 0) {
                         return false;
                     }
                     if (!input.isSimulate()) {
-                        runtime.getRecipesGui().show(helpers.getFocusFactory().createFocus(role, VanillaTypes.ITEM_STACK, stack));
+                        showNeighbor(recipe, direction);
                     }
                     return true;
                 }
             });
+        }
+
+        private void showNeighbor(EFMachineTier recipe, int direction) {
+            EFMachineTier next = EFRecipeViewer.neighbor(kind, recipe, direction, Screen.hasShiftDown());
+            if (next == null || next.level() == recipe.level() || runtime == null) {
+                return;
+            }
+            ItemStack stack = EvolvingMachineItem.withLevel(EFItems.item(kind), next.level());
+            runtime.getRecipesGui().show(helpers.getFocusFactory().createFocus(
+                    RecipeIngredientRole.OUTPUT, VanillaTypes.ITEM_STACK, stack));
         }
     }
 }

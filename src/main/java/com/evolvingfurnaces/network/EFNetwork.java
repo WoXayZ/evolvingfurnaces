@@ -12,6 +12,7 @@ public final class EFNetwork {
         PayloadRegistrar registrar = event.registrar("1");
         registrar.playToClient(EFSyncTiersPayload.TYPE, EFSyncTiersPayload.STREAM_CODEC, EFSyncTiersPayload::handle);
         registrar.playToServer(EFUpgradeMachinePayload.TYPE, EFUpgradeMachinePayload.STREAM_CODEC, EFUpgradeMachinePayload::handle);
+        registrar.playToServer(EFInstallModulePayload.TYPE, EFInstallModulePayload.STREAM_CODEC, EFInstallModulePayload::handle);
         registrar.playToServer(EFConfigureIoPayload.TYPE, EFConfigureIoPayload.STREAM_CODEC, EFConfigureIoPayload::handle);
     }
 }

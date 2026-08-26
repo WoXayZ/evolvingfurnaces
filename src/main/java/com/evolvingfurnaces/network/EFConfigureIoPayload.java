@@ -35,8 +35,9 @@ public record EFConfigureIoPayload(BlockPos pos, Direction face) implements Cust
             return;
         }
         if (player.level().getBlockEntity(payload.pos()) instanceof EFIoHost machine) {
-            machine.io().cycle(payload.face());
+            machine.io().cycle(payload.face(), machine.energyModule());
             machine.setChanged();
+            player.level().invalidateCapabilities(payload.pos());
             player.level().sendBlockUpdated(payload.pos(), machine.getBlockState(), machine.getBlockState(), 3);
         }
     }

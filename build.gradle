@@ -147,3 +147,13 @@ tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release = 21
 }
+
+tasks.register('copyReleaseJar', Copy) {
+    dependsOn jar
+    from jar.archiveFile
+    into "releases/${project.version}"
+}
+
+tasks.named('jar') {
+    finalizedBy 'copyReleaseJar'
+}

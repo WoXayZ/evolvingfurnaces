@@ -30,6 +30,16 @@ public class EvolvingMachineItem extends BlockItem {
         return value == null ? 1 : Math.max(1, value);
     }
 
+    public static EFEnergyModule moduleOf(ItemStack stack) {
+        EFEnergyModule module = stack.get(EFDataComponents.ENERGY_MODULE.get());
+        return module == null ? EFEnergyModule.NONE : module;
+    }
+
+    public static int energyOf(ItemStack stack) {
+        Integer value = stack.get(EFDataComponents.ENERGY_STORED.get());
+        return value == null ? 0 : Math.max(0, value);
+    }
+
     public static ItemStack withLevel(Item item, int level) {
         ItemStack stack = new ItemStack(item);
         stack.set(EFDataComponents.MACHINE_LEVEL.get(), Math.max(1, level));

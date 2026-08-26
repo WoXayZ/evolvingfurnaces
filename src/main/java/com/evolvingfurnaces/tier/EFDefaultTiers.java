@@ -84,6 +84,7 @@ public final class EFDefaultTiers {
             Map<String, String> names = new LinkedHashMap<>();
             names.put("en_us", enName);
             names.put("fr_fr", frName);
+            boolean cooking = kind.isCooking();
             tiers[i] = new EFMachineTier(
                     i + 1,
                     Optional.of(NAMES[i]),
@@ -92,8 +93,20 @@ public final class EFDefaultTiers {
                     required,
                     new EFUpgradeCost(List.of(EFCostIngredient.item(BLOCKS[i], 8)), XP[i]),
                     processTime,
-                    BATCH[i]
+                    BATCH[i],
+                    cooking ? 8000 * BATCH[i] : 0,
+                    cooking ? 20 * (i + 1) : 0,
+                    cooking ? 20 * (i + 1) : 0
             );
+        }
+        if (kind.isCooking()) {
+            EFUpgradeCost generatorCost = kind == EFMachineKind.FURNACE
+                    ? new EFUpgradeCost(List.of(EFCostIngredient.item("minecraft:coal_block", 8)), 15)
+                    : EFUpgradeCost.EMPTY;
+            return new EFTierList(
+                    List.of(tiers),
+                    generatorCost,
+                    new EFUpgradeCost(List.of(EFCostIngredient.item("minecraft:comparator", 8)), 15));
         }
         return new EFTierList(List.of(tiers));
     }

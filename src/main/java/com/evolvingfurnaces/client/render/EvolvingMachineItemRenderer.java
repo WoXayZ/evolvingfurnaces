@@ -51,6 +51,14 @@ public class EvolvingMachineItemRenderer extends BlockEntityWithoutLevelRenderer
         }
         BlockState state = EFBlocks.block(kind).defaultBlockState().setValue(AbstractFurnaceBlock.FACING, Direction.NORTH);
         Minecraft.getInstance().getBlockRenderer().renderSingleBlock(state, poseStack, buffers, light, packedOverlay);
-        EvolvingMachineRenderer.renderOverlay(kind, EvolvingMachineItem.levelOf(stack), state, poseStack, buffers, light, packedOverlay);
+        EvolvingMachineRenderer.renderOverlay(
+                kind,
+                EvolvingMachineItem.levelOf(stack),
+                state,
+                EvolvingMachineItem.moduleOf(stack),
+                poseStack,
+                buffers,
+                light,
+                packedOverlay);
     }
 }

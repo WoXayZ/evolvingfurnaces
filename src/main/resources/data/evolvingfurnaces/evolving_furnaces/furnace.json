@@ -1,4 +1,22 @@
 {
+  "generator_cost": {
+    "items": [
+      {
+        "count": 8,
+        "item": "minecraft:coal_block"
+      }
+    ],
+    "experience_levels": 15
+  },
+  "electric_cost": {
+    "items": [
+      {
+        "count": 8,
+        "item": "minecraft:comparator"
+      }
+    ],
+    "experience_levels": 15
+  },
   "levels": [
     {
       "level": 1,
@@ -22,7 +40,10 @@
         "experience_levels": 2
       },
       "cook_time": 200,
-      "batch_size": 1
+      "batch_size": 1,
+      "energy_capacity": 8000,
+      "energy_generate": 20,
+      "energy_consume": 20
     },
     {
       "level": 2,
@@ -46,7 +67,10 @@
         "experience_levels": 5
       },
       "cook_time": 190,
-      "batch_size": 1
+      "batch_size": 1,
+      "energy_capacity": 8000,
+      "energy_generate": 40,
+      "energy_consume": 40
     },
     {
       "level": 3,
@@ -70,7 +94,10 @@
         "experience_levels": 8
       },
       "cook_time": 180,
-      "batch_size": 1
+      "batch_size": 1,
+      "energy_capacity": 8000,
+      "energy_generate": 60,
+      "energy_consume": 60
     },
     {
       "level": 4,
@@ -94,7 +121,10 @@
         "experience_levels": 10
       },
       "cook_time": 170,
-      "batch_size": 2
+      "batch_size": 2,
+      "energy_capacity": 16000,
+      "energy_generate": 80,
+      "energy_consume": 80
     },
     {
       "level": 5,
@@ -118,7 +148,10 @@
         "experience_levels": 12
       },
       "cook_time": 160,
-      "batch_size": 2
+      "batch_size": 2,
+      "energy_capacity": 16000,
+      "energy_generate": 100,
+      "energy_consume": 100
     },
     {
       "level": 6,
@@ -142,7 +175,10 @@
         "experience_levels": 15
       },
       "cook_time": 150,
-      "batch_size": 2
+      "batch_size": 2,
+      "energy_capacity": 16000,
+      "energy_generate": 120,
+      "energy_consume": 120
     },
     {
       "level": 7,
@@ -166,7 +202,10 @@
         "experience_levels": 18
       },
       "cook_time": 140,
-      "batch_size": 4
+      "batch_size": 4,
+      "energy_capacity": 32000,
+      "energy_generate": 140,
+      "energy_consume": 140
     },
     {
       "level": 8,
@@ -190,7 +229,10 @@
         "experience_levels": 20
       },
       "cook_time": 130,
-      "batch_size": 4
+      "batch_size": 4,
+      "energy_capacity": 32000,
+      "energy_generate": 160,
+      "energy_consume": 160
     },
     {
       "level": 9,
@@ -214,7 +256,10 @@
         "experience_levels": 25
       },
       "cook_time": 120,
-      "batch_size": 4
+      "batch_size": 4,
+      "energy_capacity": 32000,
+      "energy_generate": 180,
+      "energy_consume": 180
     },
     {
       "level": 10,
@@ -238,7 +283,10 @@
         "experience_levels": 30
       },
       "cook_time": 110,
-      "batch_size": 8
+      "batch_size": 8,
+      "energy_capacity": 64000,
+      "energy_generate": 200,
+      "energy_consume": 200
     }
   ]
 }

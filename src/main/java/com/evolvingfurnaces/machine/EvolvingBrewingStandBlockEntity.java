@@ -427,7 +427,7 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
             case INPUT -> SLOT_INPUTS;
             case FUEL -> SLOT_FUEL_ONLY;
             case OUTPUT -> SLOT_POTIONS;
-            case DISABLED -> SLOT_NONE;
+            case DISABLED, ENERGY -> SLOT_NONE;
         };
     }
 
@@ -440,7 +440,7 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
             return switch (io.get(direction)) {
                 case INPUT -> slot != SLOT_FUEL && canPlaceItem(slot, stack);
                 case FUEL -> slot == SLOT_FUEL && canPlaceItem(slot, stack);
-                case OUTPUT, DISABLED -> false;
+                case OUTPUT, DISABLED, ENERGY -> false;
             };
         }
         return canPlaceItem(slot, stack);
@@ -451,7 +451,7 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
         return switch (io.get(direction)) {
             case OUTPUT -> isPotionSlot(slot);
             case FUEL -> slot == SLOT_FUEL;
-            case INPUT, DISABLED -> false;
+            case INPUT, DISABLED, ENERGY -> false;
         };
     }
 
