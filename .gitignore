@@ -24,3 +24,6 @@ bin/
 # OS
 .DS_Store
 Thumbs.db
+
+# Local release jars (not versioned)
+releases/
