@@ -3,21 +3,21 @@ package com.evolvingfurnaces.registry;
 import com.evolvingfurnaces.EFConstants;
 import com.evolvingfurnaces.machine.EvolvingBrewingStandMenu;
 import com.evolvingfurnaces.machine.EvolvingMachineMenu;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.world.inventory.MenuType;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.common.extensions.IMenuTypeExtension;
-import net.neoforged.neoforge.registries.DeferredHolder;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraftforge.common.extensions.IForgeMenuType;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
 
 public final class EFMenus {
 
-    private static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(Registries.MENU, EFConstants.MOD_ID);
+    private static final DeferredRegister<MenuType<?>> MENUS = DeferredRegister.create(ForgeRegistries.MENU_TYPES, EFConstants.MOD_ID);
 
-    public static final DeferredHolder<MenuType<?>, MenuType<EvolvingMachineMenu>> MACHINE =
-            MENUS.register("machine", () -> IMenuTypeExtension.create(EvolvingMachineMenu::new));
-    public static final DeferredHolder<MenuType<?>, MenuType<EvolvingBrewingStandMenu>> BREWING_STAND =
-            MENUS.register("brewing_stand", () -> IMenuTypeExtension.create(EvolvingBrewingStandMenu::new));
+    public static final RegistryObject<MenuType<EvolvingMachineMenu>> MACHINE =
+            MENUS.register("machine", () -> IForgeMenuType.create(EvolvingMachineMenu::new));
+    public static final RegistryObject<MenuType<EvolvingBrewingStandMenu>> BREWING_STAND =
+            MENUS.register("brewing_stand", () -> IForgeMenuType.create(EvolvingBrewingStandMenu::new));
 
     private EFMenus() {
     }

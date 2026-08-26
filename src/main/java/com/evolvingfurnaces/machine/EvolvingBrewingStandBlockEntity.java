@@ -1,24 +1,23 @@
 package com.evolvingfurnaces.machine;
 
 import com.evolvingfurnaces.registry.EFBlockEntities;
-import com.evolvingfurnaces.registry.EFDataComponents;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import com.evolvingfurnaces.tier.EFMachineTier;
 import com.evolvingfurnaces.tier.EFTierManager;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
-import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.world.Container;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.Containers;
 import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.Item;
@@ -31,7 +30,10 @@ import net.minecraft.world.level.block.BrewingStandBlock;
 import net.minecraft.world.level.block.LevelEvent;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.items.IItemHandler;
+import net.minecraftforge.common.capabilities.Capability;
+import net.minecraftforge.common.capabilities.ForgeCapabilities;
+import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.items.IItemHandler;
 import org.jetbrains.annotations.Nullable;
 
 public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity implements WorldlyContainer, EFIoHost {
@@ -52,6 +54,8 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
     private NonNullList<ItemStack> items = NonNullList.withSize(5, ItemStack.EMPTY);
     private final EFMachineIo io = new EFMachineIo();
     private final EFBrewingIoHandler[] handlers = new EFBrewingIoHandler[7];
+    @SuppressWarnings("unchecked")
+    private final LazyOptional<IItemHandler>[] lazy = new LazyOptional[7];
     private int machineLevel = 1;
     private int cooks;
     private int brewTime;
@@ -191,6 +195,29 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
         return handler;
     }
 
+    @Override
+    public <T> LazyOptional<T> getCapability(Capability<T> cap, @Nullable Direction side) {
+        if (cap == ForgeCapabilities.ITEM_HANDLER && !isRemoved()) {
+            int index = side == null ? 6 : side.ordinal();
+            if (lazy[index] == null) {
+                lazy[index] = LazyOptional.of(() -> handler(side));
+            }
+            return lazy[index].cast();
+        }
+        return super.getCapability(cap, side);
+    }
+
+    @Override
+    public void invalidateCaps() {
+        super.invalidateCaps();
+        for (int i = 0; i < lazy.length; i++) {
+            if (lazy[i] != null) {
+                lazy[i].invalidate();
+                lazy[i] = null;
+            }
+        }
+    }
+
     /**
      * At most one brew completion per game tick. Fuel is consumed once per operation.
      * Ingredient cost is the largest brewable potion stack among the three slots.
@@ -207,7 +234,7 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
             setChanged(level, pos, state);
         }
 
-        boolean canBrew = machine.isBrewable(level);
+        boolean canBrew = machine.isBrewable();
         if (machine.brewTime > 0) {
             machine.brewTime--;
             if (machine.brewTime == 0 && canBrew) {
@@ -234,24 +261,23 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
         return cycleIngredient != null && (ingredient.isEmpty() || ingredient.getItem() != cycleIngredient);
     }
 
-    private boolean isBrewable(Level level) {
-        PotionBrewing brewing = level.potionBrewing();
+    private boolean isBrewable() {
         ItemStack ingredient = items.get(SLOT_INGREDIENT);
-        if (ingredient.isEmpty() || !brewing.isIngredient(ingredient)) {
+        if (ingredient.isEmpty() || !PotionBrewing.isIngredient(ingredient)) {
             return false;
         }
-        int cost = ingredientCost(brewing, ingredient);
+        int cost = ingredientCost(ingredient);
         return cost > 0 && ingredient.getCount() >= cost;
     }
 
     /**
      * 8-7-4 consumes 8, 3-2-0 consumes 3. Empty slots and bottles that cannot mix are ignored.
      */
-    private int ingredientCost(PotionBrewing brewing, ItemStack ingredient) {
+    private int ingredientCost(ItemStack ingredient) {
         int max = 0;
         for (int slot = 0; slot < 3; slot++) {
             ItemStack bottle = items.get(slot);
-            if (bottle.isEmpty() || !brewing.hasMix(single(bottle), ingredient)) {
+            if (bottle.isEmpty() || !PotionBrewing.hasMix(single(bottle), ingredient)) {
                 continue;
             }
             max = Math.max(max, bottle.getCount());
@@ -260,13 +286,12 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
     }
 
     private void completeBrew(Level level) {
-        PotionBrewing brewing = level.potionBrewing();
         ItemStack ingredient = items.get(SLOT_INGREDIENT);
-        if (ingredient.isEmpty() || !brewing.isIngredient(ingredient)) {
+        if (ingredient.isEmpty() || !PotionBrewing.isIngredient(ingredient)) {
             cycleIngredient = null;
             return;
         }
-        int cost = ingredientCost(brewing, ingredient);
+        int cost = ingredientCost(ingredient);
         if (cost < 1 || ingredient.getCount() < cost) {
             cycleIngredient = null;
             return;
@@ -278,10 +303,10 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
                 continue;
             }
             ItemStack one = single(bottle);
-            if (!brewing.hasMix(one, ingredient)) {
+            if (!PotionBrewing.hasMix(one, ingredient)) {
                 continue;
             }
-            ItemStack result = brewing.mix(ingredient, one);
+            ItemStack result = PotionBrewing.mix(ingredient, one);
             if (result.isEmpty()) {
                 continue;
             }
@@ -303,7 +328,7 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
         ItemStack leftover = ingredient.getCraftingRemainingItem();
         ingredient.shrink(cost);
         if (!leftover.isEmpty()) {
-            leftover = leftover.copyWithCount(leftover.getCount() * cost);
+            leftover = EFStacks.copyWithCount(leftover, leftover.getCount() * cost);
             if (ingredient.isEmpty()) {
                 ingredient = leftover;
             } else {
@@ -328,8 +353,8 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
         }
     }
 
-    public void loadVanillaData(CompoundTag tag, ItemStack[] stacks, int newLevel, HolderLookup.Provider registries) {
-        loadAdditional(tag, registries);
+    public void loadVanillaData(CompoundTag tag, ItemStack[] stacks, int newLevel) {
+        load(tag);
         for (int i = 0; i < Math.min(stacks.length, items.size()); i++) {
             items.set(i, stacks[i]);
         }
@@ -361,13 +386,15 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
             } else {
                 limit = Math.min(getMaxStackSize(), stack.getMaxStackSize());
             }
-            stack.limitSize(limit);
+            if (stack.getCount() > limit) {
+                stack.setCount(limit);
+            }
         }
         setChanged();
     }
 
     private static ItemStack single(ItemStack stack) {
-        return stack.copyWithCount(1);
+        return EFStacks.copyWithCount(stack, 1);
     }
 
     public boolean isPotionSlot(int slot) {
@@ -377,16 +404,6 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
     @Override
     protected Component getDefaultName() {
         return tier().displayName().toComponent();
-    }
-
-    @Override
-    protected NonNullList<ItemStack> getItems() {
-        return items;
-    }
-
-    @Override
-    protected void setItems(NonNullList<ItemStack> items) {
-        this.items = items;
     }
 
     @Override
@@ -400,20 +417,51 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
     }
 
     @Override
-    public boolean canPlaceItem(int slot, ItemStack stack) {
-        if (level == null) {
-            return false;
+    public boolean isEmpty() {
+        for (ItemStack stack : items) {
+            if (!stack.isEmpty()) {
+                return false;
+            }
         }
-        PotionBrewing brewing = level.potionBrewing();
+        return true;
+    }
+
+    @Override
+    public ItemStack getItem(int slot) {
+        return items.get(slot);
+    }
+
+    @Override
+    public ItemStack removeItem(int slot, int amount) {
+        return ContainerHelper.removeItem(items, slot, amount);
+    }
+
+    @Override
+    public ItemStack removeItemNoUpdate(int slot) {
+        return ContainerHelper.takeItem(items, slot);
+    }
+
+    @Override
+    public boolean stillValid(Player player) {
+        return Container.stillValidBlockEntity(this, player);
+    }
+
+    @Override
+    public void clearContent() {
+        items.clear();
+    }
+
+    @Override
+    public boolean canPlaceItem(int slot, ItemStack stack) {
         if (isPotionSlot(slot)) {
-            if (!brewing.isInput(stack)) {
+            if (!net.minecraftforge.common.brewing.BrewingRecipeRegistry.isValidInput(stack)) {
                 return false;
             }
             ItemStack existing = items.get(slot);
-            return existing.isEmpty() || ItemStack.isSameItemSameComponents(existing, stack);
+            return existing.isEmpty() || ItemStack.isSameItemSameTags(existing, stack);
         }
         if (slot == SLOT_INGREDIENT) {
-            return brewing.isIngredient(stack);
+            return PotionBrewing.isIngredient(stack);
         }
         if (slot == SLOT_FUEL) {
             return stack.is(Items.BLAZE_POWDER);
@@ -461,25 +509,11 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
     }
 
     @Override
-    public int getMaxStackSize(ItemStack stack) {
-        if (!stack.isEmpty() && level != null) {
-            PotionBrewing brewing = level.potionBrewing();
-            if (brewing.isInput(stack)) {
-                return batchSize();
-            }
-            if (brewing.isIngredient(stack)) {
-                return Math.max(stack.getMaxStackSize(), batchSize());
-            }
-        }
-        return Math.min(getMaxStackSize(), stack.getMaxStackSize());
-    }
-
-    @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
+    public void load(CompoundTag tag) {
+        super.load(tag);
         if (tag.contains("Items", Tag.TAG_LIST)) {
             items = NonNullList.withSize(getContainerSize(), ItemStack.EMPTY);
-            ContainerHelper.loadAllItems(tag, items, registries);
+            ContainerHelper.loadAllItems(tag, items);
         }
         brewTime = tag.getInt("BrewTime");
         brewTimeTotal = tag.getInt("BrewTimeTotal");
@@ -497,20 +531,20 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
+    protected void saveAdditional(CompoundTag tag) {
+        super.saveAdditional(tag);
         tag.putInt("BrewTime", brewTime);
         tag.putInt("BrewTimeTotal", brewTimeTotal);
         tag.putInt("Fuel", fuel);
         tag.putInt("MachineLevel", machineLevel);
         tag.putInt("Cooks", cooks);
-        ContainerHelper.saveAllItems(tag, items, registries);
+        ContainerHelper.saveAllItems(tag, items);
         io.save(tag);
     }
 
     @Override
-    public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-        CompoundTag tag = super.getUpdateTag(registries);
+    public CompoundTag getUpdateTag() {
+        CompoundTag tag = super.getUpdateTag();
         tag.putInt("MachineLevel", machineLevel);
         tag.putInt("Cooks", cooks);
         io.save(tag);
@@ -518,8 +552,7 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
     }
 
     @Override
-    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider registries) {
-        super.handleUpdateTag(tag, registries);
+    public void handleUpdateTag(CompoundTag tag) {
         if (tag.contains("MachineLevel", Tag.TAG_INT)) {
             machineLevel = Math.max(1, tag.getInt("MachineLevel"));
             refreshTierStats();
@@ -533,24 +566,5 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
     @Override
     public ClientboundBlockEntityDataPacket getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
-    }
-
-    @Override
-    protected void applyImplicitComponents(DataComponentInput input) {
-        super.applyImplicitComponents(input);
-        machineLevel = Math.max(1, input.getOrDefault(EFDataComponents.MACHINE_LEVEL.get(), 1));
-        refreshTierStats();
-    }
-
-    @Override
-    protected void collectImplicitComponents(DataComponentMap.Builder builder) {
-        super.collectImplicitComponents(builder);
-        builder.set(EFDataComponents.MACHINE_LEVEL.get(), machineLevel);
-    }
-
-    @Override
-    public void removeComponentsFromTag(CompoundTag tag) {
-        super.removeComponentsFromTag(tag);
-        tag.remove("MachineLevel");
     }
 }

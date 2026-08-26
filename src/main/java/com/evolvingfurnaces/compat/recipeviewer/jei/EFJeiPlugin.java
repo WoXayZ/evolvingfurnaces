@@ -18,13 +18,9 @@ import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
-import mezz.jei.api.gui.builder.ITooltipBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.handlers.IGuiContainerHandler;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
-import mezz.jei.api.gui.inputs.IJeiInputHandler;
-import mezz.jei.api.gui.inputs.IJeiUserInput;
-import mezz.jei.api.gui.widgets.IRecipeExtrasBuilder;
 import mezz.jei.api.helpers.IJeiHelpers;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
@@ -37,7 +33,6 @@ import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.BlastFurnaceScreen;
 import net.minecraft.client.gui.screens.inventory.BrewingStandScreen;
@@ -62,11 +57,6 @@ public final class EFJeiPlugin implements IModPlugin {
     @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
         runtime = jeiRuntime;
-    }
-
-    @Override
-    public void onRuntimeUnavailable() {
-        runtime = null;
     }
 
     @Override
@@ -154,11 +144,13 @@ public final class EFJeiPlugin implements IModPlugin {
 
         private final EFMachineKind kind;
         private final IJeiHelpers helpers;
+        private final IDrawable background;
         private final IDrawable icon;
 
         public EFRecipeViewerJeiCategory(IJeiHelpers helpers, EFMachineKind kind) {
             this.kind = kind;
             this.helpers = helpers;
+            this.background = helpers.getGuiHelper().createBlankDrawable(EFRecipeViewer.WIDTH, EFRecipeViewer.HEIGHT);
             this.icon = helpers.getGuiHelper().createDrawableIngredient(
                     VanillaTypes.ITEM_STACK, EvolvingMachineItem.withLevel(EFItems.item(kind), 1));
         }
@@ -183,13 +175,8 @@ public final class EFJeiPlugin implements IModPlugin {
         }
 
         @Override
-        public int getWidth() {
-            return EFRecipeViewer.WIDTH;
-        }
-
-        @Override
-        public int getHeight() {
-            return EFRecipeViewer.HEIGHT;
+        public IDrawable getBackground() {
+            return background;
         }
 
         @Override
@@ -209,62 +196,46 @@ public final class EFJeiPlugin implements IModPlugin {
         }
 
         @Override
-        public void getTooltip(ITooltipBuilder tooltip, EFMachineKind recipe, IRecipeSlotsView slots, double mouseX, double mouseY) {
+        public List<Component> getTooltipStrings(EFMachineKind recipe, IRecipeSlotsView slots, double mouseX, double mouseY) {
             ItemStack stack = EFRecipeViewer.hoveredStack(recipe, mouseX, mouseY);
             if (stack.isEmpty()) {
-                return;
+                return List.of();
             }
-            tooltip.addAll(EFRecipeViewer.tooltipLines(stack));
-            helpers.getIngredientManager()
-                    .createTypedIngredient(VanillaTypes.ITEM_STACK, stack, false)
-                    .ifPresent(tooltip::setIngredient);
+            return EFRecipeViewer.tooltipLines(stack);
+        }
+
+        @Override
+        public boolean handleInput(EFMachineKind recipe, double mouseX, double mouseY, InputConstants.Key input) {
+            int direction = EFRecipeViewer.navDirection(mouseX, mouseY);
+            if (direction != 0) {
+                if (input.getType() != InputConstants.Type.MOUSE || input.getValue() != 0) {
+                    return false;
+                }
+                EFRecipeViewer.clickNav(recipe, mouseX, mouseY);
+                return true;
+            }
+            ItemStack stack = EFRecipeViewer.hoveredStack(recipe, mouseX, mouseY);
+            if (stack.isEmpty() || runtime == null) {
+                return false;
+            }
+            RecipeIngredientRole role = null;
+            if (input.getType() == InputConstants.Type.MOUSE) {
+                if (input.getValue() == 0) {
+                    role = RecipeIngredientRole.OUTPUT;
+                } else if (input.getValue() == 1) {
+                    role = RecipeIngredientRole.INPUT;
+                }
+            }
+            if (role == null) {
+                return false;
+            }
+            runtime.getRecipesGui().show(helpers.getFocusFactory().createFocus(role, VanillaTypes.ITEM_STACK, stack));
+            return true;
         }
 
         @Override
         public @Nullable ResourceLocation getRegistryName(EFMachineKind recipe) {
             return EFConstants.id("recipe_viewer/" + recipe.id());
-        }
-
-        @Override
-        public void createRecipeExtras(IRecipeExtrasBuilder builder, EFMachineKind recipe, IFocusGroup focuses) {
-            builder.addInputHandler(new IJeiInputHandler() {
-                @Override
-                public ScreenRectangle getArea() {
-                    return new ScreenRectangle(0, 0, EFRecipeViewer.WIDTH, EFRecipeViewer.HEIGHT);
-                }
-
-                @Override
-                public boolean handleInput(double mouseX, double mouseY, IJeiUserInput input) {
-                    int direction = EFRecipeViewer.navDirection(mouseX, mouseY);
-                    if (direction != 0) {
-                        if (input.getKey().getType() != InputConstants.Type.MOUSE || input.getKey().getValue() != 0) {
-                            return false;
-                        }
-                        if (!input.isSimulate()) {
-                            EFRecipeViewer.clickNav(recipe, mouseX, mouseY);
-                        }
-                        return true;
-                    }
-                    ItemStack stack = EFRecipeViewer.hoveredStack(recipe, mouseX, mouseY);
-                    if (stack.isEmpty() || runtime == null) {
-                        return false;
-                    }
-                    RecipeIngredientRole role = null;
-                    var keys = runtime.getKeyMappings();
-                    if (keys.getShowRecipe().isActiveAndMatches(input.getKey())) {
-                        role = RecipeIngredientRole.OUTPUT;
-                    } else if (keys.getShowUses().isActiveAndMatches(input.getKey())) {
-                        role = RecipeIngredientRole.INPUT;
-                    }
-                    if (role == null) {
-                        return false;
-                    }
-                    if (!input.isSimulate()) {
-                        runtime.getRecipesGui().show(helpers.getFocusFactory().createFocus(role, VanillaTypes.ITEM_STACK, stack));
-                    }
-                    return true;
-                }
-            });
         }
     }
 }

@@ -1,15 +1,16 @@
 package com.evolvingfurnaces.tier;
 
 import com.evolvingfurnaces.EFConstants;
+import com.evolvingfurnaces.network.EFNetwork;
 import com.evolvingfurnaces.network.EFSyncTiersPayload;
 import net.minecraft.server.level.ServerPlayer;
-import net.neoforged.bus.api.SubscribeEvent;
-import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.AddReloadListenerEvent;
-import net.neoforged.neoforge.event.OnDatapackSyncEvent;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.minecraftforge.event.AddReloadListenerEvent;
+import net.minecraftforge.event.OnDatapackSyncEvent;
+import net.minecraftforge.eventbus.api.SubscribeEvent;
+import net.minecraftforge.fml.common.Mod;
+import net.minecraftforge.network.PacketDistributor;
 
-@EventBusSubscriber(modid = EFConstants.MOD_ID)
+@Mod.EventBusSubscriber(modid = EFConstants.MOD_ID)
 public final class EFTierEvents {
 
     private EFTierEvents() {
@@ -25,9 +26,9 @@ public final class EFTierEvents {
         EFSyncTiersPayload payload = EFSyncTiersPayload.from(EFTierManager.snapshot());
         ServerPlayer player = event.getPlayer();
         if (player != null) {
-            PacketDistributor.sendToPlayer(player, payload);
+            EFNetwork.CHANNEL.send(PacketDistributor.PLAYER.with(() -> player), payload);
         } else {
-            PacketDistributor.sendToAllPlayers(payload);
+            EFNetwork.CHANNEL.send(PacketDistributor.ALL.noArg(), payload);
         }
     }
 }

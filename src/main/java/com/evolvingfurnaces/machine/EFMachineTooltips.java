@@ -6,12 +6,11 @@ import com.evolvingfurnaces.tier.EFMachineTier;
 import com.evolvingfurnaces.tier.EFTierManager;
 import java.util.List;
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
 import org.jetbrains.annotations.Nullable;
 
 public final class EFMachineTooltips {
@@ -76,12 +75,11 @@ public final class EFMachineTooltips {
     }
 
     private static int cooksOf(ItemStack stack) {
-        CustomData data = stack.get(DataComponents.BLOCK_ENTITY_DATA);
+        CompoundTag data = BlockItem.getBlockEntityData(stack);
         if (data == null) {
             return 0;
         }
-        CompoundTag tag = data.copyTag();
-        return Math.max(0, tag.getInt("Cooks"));
+        return Math.max(0, data.getInt("Cooks"));
     }
 
     private static Component costLabel(EFCostIngredient cost) {

@@ -3,7 +3,7 @@ package com.evolvingfurnaces.machine;
 import com.evolvingfurnaces.tier.EFIoRole;
 import net.minecraft.core.Direction;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.items.IItemHandler;
+import net.minecraftforge.items.IItemHandler;
 import org.jetbrains.annotations.Nullable;
 
 public final class EFMachineIoHandler implements IItemHandler {
@@ -39,7 +39,7 @@ public final class EFMachineIoHandler implements IItemHandler {
         ItemStack existing = machine.getItem(slot);
         int limit = Math.min(stack.getMaxStackSize(), machine.getMaxStackSize());
         if (!existing.isEmpty()) {
-            if (!ItemStack.isSameItemSameComponents(existing, stack)) {
+            if (!ItemStack.isSameItemSameTags(existing, stack)) {
                 return stack;
             }
             limit -= existing.getCount();
@@ -50,13 +50,13 @@ public final class EFMachineIoHandler implements IItemHandler {
         int toInsert = Math.min(stack.getCount(), limit);
         if (!simulate) {
             if (existing.isEmpty()) {
-                machine.setItem(slot, stack.copyWithCount(toInsert));
+                machine.setItem(slot, EFStacks.copyWithCount(stack, toInsert));
             } else {
                 existing.grow(toInsert);
                 machine.setChanged();
             }
         }
-        return stack.copyWithCount(stack.getCount() - toInsert);
+        return EFStacks.copyWithCount(stack, stack.getCount() - toInsert);
     }
 
     @Override
@@ -69,7 +69,7 @@ public final class EFMachineIoHandler implements IItemHandler {
             return ItemStack.EMPTY;
         }
         int toExtract = Math.min(amount, existing.getCount());
-        ItemStack result = existing.copyWithCount(toExtract);
+        ItemStack result = EFStacks.copyWithCount(existing, toExtract);
         if (!simulate) {
             existing.shrink(toExtract);
             machine.setChanged();

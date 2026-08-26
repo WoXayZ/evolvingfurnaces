@@ -6,6 +6,7 @@ import com.evolvingfurnaces.machine.EFUpgradeHandler;
 import com.evolvingfurnaces.machine.EvolvingMachineBlockEntity;
 import com.evolvingfurnaces.machine.EvolvingMachineMenu;
 import com.evolvingfurnaces.network.EFConfigureIoPayload;
+import com.evolvingfurnaces.network.EFNetwork;
 import com.evolvingfurnaces.network.EFUpgradeMachinePayload;
 import com.evolvingfurnaces.tier.EFIoRole;
 import com.evolvingfurnaces.tier.EFMachineKind;
@@ -28,21 +29,18 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.level.block.AbstractFurnaceBlock;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachineMenu> {
 
-    private static final ResourceLocation TEXTURE = ResourceLocation.withDefaultNamespace("textures/gui/container/furnace.png");
-    private static final ResourceLocation LIT_PROGRESS = ResourceLocation.withDefaultNamespace("container/furnace/lit_progress");
-    private static final ResourceLocation BURN_PROGRESS = ResourceLocation.withDefaultNamespace("container/furnace/burn_progress");
+    private static final ResourceLocation TEXTURE = new ResourceLocation("textures/gui/container/furnace.png");
     private static final ResourceLocation IO_PANEL = EFConstants.id("textures/gui/io_panel.png");
     private static final ResourceLocation INFO_PANEL = EFConstants.id("textures/gui/info_panel.png");
 
-    private static final ResourceLocation IO = EFConstants.id("widget/io");
-    private static final ResourceLocation INFO = EFConstants.id("widget/info");
-    private static final ResourceLocation UPGRADE = EFConstants.id("widget/upgrade");
-    private static final ResourceLocation UPGRADE_READY = EFConstants.id("widget/upgrade_ready");
-    private static final ResourceLocation UPGRADE_MAX = EFConstants.id("widget/upgrade_max");
+    private static final ResourceLocation IO = EFConstants.widget("io");
+    private static final ResourceLocation INFO = EFConstants.widget("info");
+    private static final ResourceLocation UPGRADE = EFConstants.widget("upgrade");
+    private static final ResourceLocation UPGRADE_READY = EFConstants.widget("upgrade_ready");
+    private static final ResourceLocation UPGRADE_MAX = EFConstants.widget("upgrade_max");
 
     static final int IO_W = 62;
     static final int IO_H = 67;
@@ -64,7 +62,7 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
     private EFSpriteButton upgradeButton;
 
     public EvolvingMachineScreen(EvolvingMachineMenu menu, Inventory inventory, Component title) {
-        super(menu, recipeBook(menu.kind()), inventory, title, TEXTURE, LIT_PROGRESS, BURN_PROGRESS);
+        super(menu, recipeBook(menu.kind()), inventory, title, TEXTURE);
         this.infoOpen = rememberedInfoOpen;
         this.ioOpen = rememberedIoOpen;
         if (this.ioOpen) {
@@ -121,7 +119,7 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
                 true,
                 button -> {
                     if (!isMaxLevel()) {
-                        PacketDistributor.sendToServer(new EFUpgradeMachinePayload(menu.blockPos()));
+                        EFNetwork.CHANNEL.sendToServer(new EFUpgradeMachinePayload(menu.blockPos()));
                     }
                 },
                 Component.translatable("evolvingfurnaces.gui.upgrade")));
@@ -159,7 +157,7 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
         if (button == 0 && ioOpen) {
             Direction face = ioFaceAt(mouseX, mouseY);
             if (face != null) {
-                PacketDistributor.sendToServer(new EFConfigureIoPayload(menu.blockPos(), face));
+                EFNetwork.CHANNEL.sendToServer(new EFConfigureIoPayload(menu.blockPos(), face));
                 return true;
             }
             if (inIoPanel(mouseX, mouseY)) {
@@ -234,7 +232,7 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
         IoFace hoveredCell = null;
         for (IoFace cell : ioFaces()) {
             boolean hover = cell.world == hovered;
-            graphics.blitSprite(ioSprite(machine.io().get(cell.world), hover), cell.x, cell.y, FACE, FACE);
+            graphics.blit(ioSprite(machine.io().get(cell.world), hover), cell.x, cell.y, 0.0F, 0.0F, FACE, FACE, FACE, FACE);
             if (hover) {
                 hoveredCell = cell;
             }
@@ -403,11 +401,11 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
     }
 
     private static ResourceLocation ioSprite(EFIoRole role, boolean hover) {
-        String path = "widget/io_" + role.getSerializedName();
+        String name = "io_" + role.getSerializedName();
         if (hover) {
-            path += "_highlighted";
+            name += "_highlighted";
         }
-        return EFConstants.id(path);
+        return EFConstants.widget(name);
     }
 
     private Direction facing() {

@@ -20,7 +20,7 @@ import net.minecraft.world.inventory.BrewingStandMenu;
 import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
 import net.minecraft.world.phys.BlockHitResult;
-import net.neoforged.neoforge.client.event.ScreenEvent;
+import net.minecraftforge.client.event.ScreenEvent;
 import org.jetbrains.annotations.Nullable;
 
 public final class EFClientGui {
@@ -84,22 +84,18 @@ public final class EFClientGui {
         if (screen instanceof SmokerScreen) {
             return EFMachineKind.SMOKER;
         }
-        if (screen.getMenu() instanceof AbstractFurnaceMenu menu) {
-            AbstractFurnaceBlockEntity furnace = furnaceOf(menu);
-            if (furnace != null) {
-                return EFMachineKind.fromVanilla(furnace.getBlockState().getBlock());
-            }
+        AbstractFurnaceBlockEntity furnace = furnaceOf(screen.getMenu());
+        if (furnace != null) {
+            return EFMachineKind.fromVanilla(furnace.getBlockState().getBlock());
         }
         return null;
     }
 
     @Nullable
     private static BlockPos furnacePos(AbstractFurnaceScreen<?> screen) {
-        if (screen.getMenu() instanceof AbstractFurnaceMenu menu) {
-            AbstractFurnaceBlockEntity furnace = furnaceOf(menu);
-            if (furnace != null) {
-                return furnace.getBlockPos();
-            }
+        AbstractFurnaceBlockEntity furnace = furnaceOf(screen.getMenu());
+        if (furnace != null) {
+            return furnace.getBlockPos();
         }
         if (Minecraft.getInstance().hitResult instanceof BlockHitResult hit) {
             return hit.getBlockPos();
@@ -109,11 +105,10 @@ public final class EFClientGui {
 
     @Nullable
     private static BlockPos brewingPos(BrewingStandScreen screen) {
-        if (screen.getMenu() instanceof BrewingStandMenu menu) {
-            for (var slot : menu.slots) {
-                if (slot.container instanceof BrewingStandBlockEntity brewing) {
-                    return brewing.getBlockPos();
-                }
+        BrewingStandMenu menu = screen.getMenu();
+        for (var slot : menu.slots) {
+            if (slot.container instanceof BrewingStandBlockEntity brewing) {
+                return brewing.getBlockPos();
             }
         }
         if (Minecraft.getInstance().hitResult instanceof BlockHitResult hit) {

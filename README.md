@@ -1,7 +1,7 @@
 # Evolving Furnaces
 
 Upgrade vanilla furnaces, blast furnaces, smokers and brewing stands through data-driven tiers.
-Minecraft **1.21.1** / **NeoForge 21.1.248**. Version **1.2**.
+Minecraft **1.20.1** / **Forge 47.4.23**. Version **1.2**.
 
 Vanilla machines stay vanilla. You upgrade one in place into a Copper machine (level 1), then keep going. Each tier can change processing time, batch size, the visual style, and the upgrade cost.
 
@@ -226,9 +226,9 @@ Jade shows the current tier name.
 
 | Dependency | Version |
 | --- | --- |
-| Minecraft | 1.21.1 |
-| NeoForge | 21.1.248+ |
-| Java | 21 |
+| Minecraft | 1.20.1 |
+| Forge | 47.4.23+ |
+| Java | 17 |
 
 Optional: JEI, EMI, REI, Jade.
 
@@ -242,7 +242,7 @@ Optional: JEI, EMI, REI, Jade.
 
 On Windows: `gradlew.bat jar`.
 
-The jar lands in `build/libs/evolvingfurnaces-neoforge-1.21.1-<version>.jar`.
+The jar lands in `build/libs/evolvingfurnaces-forge-1.20.1-<version>.jar`.
 
 ---
 

@@ -6,6 +6,7 @@ import com.evolvingfurnaces.machine.EFUpgradeHandler;
 import com.evolvingfurnaces.machine.EvolvingBrewingStandBlockEntity;
 import com.evolvingfurnaces.machine.EvolvingBrewingStandMenu;
 import com.evolvingfurnaces.network.EFConfigureIoPayload;
+import com.evolvingfurnaces.network.EFNetwork;
 import com.evolvingfurnaces.network.EFUpgradeMachinePayload;
 import com.evolvingfurnaces.tier.EFIoRole;
 import com.evolvingfurnaces.tier.EFMachineKind;
@@ -22,23 +23,19 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
-import net.neoforged.neoforge.network.PacketDistributor;
 
 public class EvolvingBrewingStandScreen extends AbstractContainerScreen<EvolvingBrewingStandMenu> {
 
-    private static final ResourceLocation TEXTURE = ResourceLocation.withDefaultNamespace("textures/gui/container/brewing_stand.png");
-    private static final ResourceLocation FUEL_SPRITE = ResourceLocation.withDefaultNamespace("container/brewing_stand/fuel_length");
-    private static final ResourceLocation BREW_PROGRESS = ResourceLocation.withDefaultNamespace("container/brewing_stand/brew_progress");
-    private static final ResourceLocation BUBBLES = ResourceLocation.withDefaultNamespace("container/brewing_stand/bubbles");
+    private static final ResourceLocation TEXTURE = new ResourceLocation("textures/gui/container/brewing_stand.png");
     private static final int[] BUBBLE_LENGTHS = {29, 24, 20, 16, 11, 6, 0};
 
     private static final ResourceLocation IO_PANEL = EFConstants.id("textures/gui/io_panel.png");
     private static final ResourceLocation INFO_PANEL = EFConstants.id("textures/gui/info_panel.png");
-    private static final ResourceLocation IO = EFConstants.id("widget/io");
-    private static final ResourceLocation INFO = EFConstants.id("widget/info");
-    private static final ResourceLocation UPGRADE = EFConstants.id("widget/upgrade");
-    private static final ResourceLocation UPGRADE_READY = EFConstants.id("widget/upgrade_ready");
-    private static final ResourceLocation UPGRADE_MAX = EFConstants.id("widget/upgrade_max");
+    private static final ResourceLocation IO = EFConstants.widget("io");
+    private static final ResourceLocation INFO = EFConstants.widget("info");
+    private static final ResourceLocation UPGRADE = EFConstants.widget("upgrade");
+    private static final ResourceLocation UPGRADE_READY = EFConstants.widget("upgrade_ready");
+    private static final ResourceLocation UPGRADE_MAX = EFConstants.widget("upgrade_max");
 
     static final int IO_W = 62;
     static final int IO_H = 67;
@@ -105,7 +102,7 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
                 true,
                 button -> {
                     if (!isMaxLevel()) {
-                        PacketDistributor.sendToServer(new EFUpgradeMachinePayload(menu.blockPos()));
+                        EFNetwork.CHANNEL.sendToServer(new EFUpgradeMachinePayload(menu.blockPos()));
                     }
                 },
                 Component.translatable("evolvingfurnaces.gui.upgrade")));
@@ -139,17 +136,17 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
         int fuelWidth = Mth.clamp((18 * menu.fuel() + EvolvingBrewingStandBlockEntity.FUEL_USES - 1)
                 / EvolvingBrewingStandBlockEntity.FUEL_USES, 0, 18);
         if (fuelWidth > 0) {
-            graphics.blitSprite(FUEL_SPRITE, 18, 4, 0, 0, leftPos + 60, topPos + 44, fuelWidth, 4);
+            graphics.blit(TEXTURE, leftPos + 60, topPos + 44, 176, 29, fuelWidth, 4);
         }
         int brewTime = menu.brewTime();
         if (brewTime > 0) {
             int height = (int) (28.0F * (1.0F - (float) brewTime / (float) menu.brewTimeTotal()));
             if (height > 0) {
-                graphics.blitSprite(BREW_PROGRESS, 9, 28, 0, 0, leftPos + 97, topPos + 16, 9, height);
+                graphics.blit(TEXTURE, leftPos + 97, topPos + 16, 176, 0, 9, height);
             }
             int bubble = BUBBLE_LENGTHS[brewTime / 2 % 7];
             if (bubble > 0) {
-                graphics.blitSprite(BUBBLES, 12, 29, 0, 29 - bubble, leftPos + 63, topPos + 14 + 29 - bubble, 12, bubble);
+                graphics.blit(TEXTURE, leftPos + 63, topPos + 14 + 29 - bubble, 185, 29 - bubble, 12, bubble);
             }
         }
     }
@@ -159,7 +156,7 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
         if (button == 0 && ioOpen) {
             Direction face = ioFaceAt(mouseX, mouseY);
             if (face != null) {
-                PacketDistributor.sendToServer(new EFConfigureIoPayload(menu.blockPos(), face));
+                EFNetwork.CHANNEL.sendToServer(new EFConfigureIoPayload(menu.blockPos(), face));
                 return true;
             }
             if (inIoPanel(mouseX, mouseY)) {
@@ -249,7 +246,7 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
         IoFace hoveredCell = null;
         for (IoFace cell : ioFaces()) {
             boolean hover = cell.world == hovered;
-            graphics.blitSprite(ioSprite(machine.io().get(cell.world), hover), cell.x, cell.y, FACE, FACE);
+            graphics.blit(ioSprite(machine.io().get(cell.world), hover), cell.x, cell.y, 0.0F, 0.0F, FACE, FACE, FACE, FACE);
             if (hover) {
                 hoveredCell = cell;
             }
@@ -385,11 +382,11 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
     }
 
     private static ResourceLocation ioSprite(EFIoRole role, boolean hover) {
-        String path = "widget/io_" + role.getSerializedName();
+        String name = "io_" + role.getSerializedName();
         if (hover) {
-            path += "_highlighted";
+            name += "_highlighted";
         }
-        return EFConstants.id(path);
+        return EFConstants.widget(name);
     }
 
     private EvolvingBrewingStandBlockEntity machine() {

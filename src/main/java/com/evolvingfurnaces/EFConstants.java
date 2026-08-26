@@ -10,6 +10,10 @@ public final class EFConstants {
     }
 
     public static ResourceLocation id(String path) {
-        return ResourceLocation.fromNamespaceAndPath(MOD_ID, path);
+        return new ResourceLocation(MOD_ID, path);
+    }
+
+    public static ResourceLocation widget(String name) {
+        return new ResourceLocation(MOD_ID, "textures/gui/sprites/widget/" + name + ".png");
     }
 }

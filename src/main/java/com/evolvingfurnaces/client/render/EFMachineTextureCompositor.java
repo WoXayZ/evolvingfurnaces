@@ -39,7 +39,7 @@ public final class EFMachineTextureCompositor {
     }
 
     private static ResourceLocation compose(EFMachineKind kind, EFMachineTier tier, Direction face, String key) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("evolvingfurnaces", "dynamic/" + key);
+        ResourceLocation id = new ResourceLocation("evolvingfurnaces", "dynamic/" + key);
         Minecraft minecraft = Minecraft.getInstance();
         ResourceManager resources = minecraft.getResourceManager();
         try (NativeImage style = loadStyle(resources, tier.style(), face)) {
@@ -51,7 +51,7 @@ public final class EFMachineTextureCompositor {
             minecraft.getTextureManager().register(id, texture);
             return id;
         } catch (IOException e) {
-            return ResourceLocation.withDefaultNamespace("textures/misc/white.png");
+            return new ResourceLocation("textures/misc/white.png");
         }
     }
 
@@ -110,7 +110,7 @@ public final class EFMachineTextureCompositor {
 
     private static int frametime(EFMachineTier tier) {
         ResourceLocation blockId = tier.style().blockId();
-        ResourceLocation mcmeta = ResourceLocation.fromNamespaceAndPath(
+        ResourceLocation mcmeta = new ResourceLocation(
                 blockId.getNamespace(), "textures/block/" + blockId.getPath() + ".png.mcmeta");
         var resource = Minecraft.getInstance().getResourceManager().getResource(mcmeta);
         if (resource.isEmpty()) {
@@ -127,10 +127,10 @@ public final class EFMachineTextureCompositor {
     }
 
     private static ResourceLocation composeBrewingBase(EFMachineTier tier, String key) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("evolvingfurnaces", "dynamic/" + key);
+        ResourceLocation id = new ResourceLocation("evolvingfurnaces", "dynamic/" + key);
         Minecraft minecraft = Minecraft.getInstance();
         ResourceManager resources = minecraft.getResourceManager();
-        try (NativeImage base = load(resources, ResourceLocation.withDefaultNamespace("textures/block/brewing_stand_base.png"));
+        try (NativeImage base = load(resources, new ResourceLocation("textures/block/brewing_stand_base.png"));
                 NativeImage style = loadStyle(resources, tier.style(), Direction.NORTH)) {
             NativeImage result = new NativeImage(GRID, GRID, true);
             if (base != null && style != null) {
@@ -155,7 +155,7 @@ public final class EFMachineTextureCompositor {
             minecraft.getTextureManager().register(id, texture);
             return id;
         } catch (IOException e) {
-            return ResourceLocation.withDefaultNamespace("textures/block/brewing_stand_base.png");
+            return new ResourceLocation("textures/block/brewing_stand_base.png");
         }
     }
 
@@ -167,21 +167,21 @@ public final class EFMachineTextureCompositor {
                 .getParticleIcon(state)
                 .contents()
                 .name();
-        ResourceLocation png = ResourceLocation.fromNamespaceAndPath(particle.getNamespace(), "textures/" + particle.getPath() + ".png");
+        ResourceLocation png = new ResourceLocation(particle.getNamespace(), "textures/" + particle.getPath() + ".png");
         NativeImage image = load(resources, png);
         if (image != null) {
             return image;
         }
         EFTextureFace requested = style.texture();
         String name = requested == EFTextureFace.SIDE ? "side" : requested.getSerializedName();
-        ResourceLocation guessed = ResourceLocation.fromNamespaceAndPath(
+        ResourceLocation guessed = new ResourceLocation(
                 style.blockId().getNamespace(),
                 "textures/block/" + style.blockId().getPath() + "_" + name + ".png");
         NativeImage sided = load(resources, guessed);
         if (sided != null) {
             return sided;
         }
-        return load(resources, ResourceLocation.fromNamespaceAndPath(
+        return load(resources, new ResourceLocation(
                 style.blockId().getNamespace(),
                 "textures/block/" + style.blockId().getPath() + ".png"));
     }

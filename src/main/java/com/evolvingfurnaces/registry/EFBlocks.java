@@ -9,32 +9,33 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.SoundType;
 import net.minecraft.world.level.block.state.BlockBehaviour;
 import net.minecraft.world.level.material.MapColor;
-import net.neoforged.bus.api.IEventBus;
-import net.neoforged.neoforge.registries.DeferredBlock;
-import net.neoforged.neoforge.registries.DeferredRegister;
+import net.minecraftforge.eventbus.api.IEventBus;
+import net.minecraftforge.registries.DeferredRegister;
+import net.minecraftforge.registries.ForgeRegistries;
+import net.minecraftforge.registries.RegistryObject;
 
 public final class EFBlocks {
 
-    public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(EFConstants.MOD_ID);
+    public static final DeferredRegister<Block> BLOCKS = DeferredRegister.create(ForgeRegistries.BLOCKS, EFConstants.MOD_ID);
 
-    public static final DeferredBlock<EvolvingMachineBlock> FURNACE = BLOCKS.register(
+    public static final RegistryObject<EvolvingMachineBlock> FURNACE = BLOCKS.register(
             "furnace",
             () -> new EvolvingMachineBlock(furnaceProperties(), EFMachineKind.FURNACE));
-    public static final DeferredBlock<EvolvingMachineBlock> BLAST_FURNACE = BLOCKS.register(
+    public static final RegistryObject<EvolvingMachineBlock> BLAST_FURNACE = BLOCKS.register(
             "blast_furnace",
             () -> new EvolvingMachineBlock(furnaceProperties(), EFMachineKind.BLAST_FURNACE));
-    public static final DeferredBlock<EvolvingMachineBlock> SMOKER = BLOCKS.register(
+    public static final RegistryObject<EvolvingMachineBlock> SMOKER = BLOCKS.register(
             "smoker",
             () -> new EvolvingMachineBlock(furnaceProperties(), EFMachineKind.SMOKER));
-    public static final DeferredBlock<EvolvingBrewingStandBlock> BREWING_STAND = BLOCKS.register(
+    public static final RegistryObject<EvolvingBrewingStandBlock> BREWING_STAND = BLOCKS.register(
             "brewing_stand",
-            () -> new EvolvingBrewingStandBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.BREWING_STAND)));
+            () -> new EvolvingBrewingStandBlock(BlockBehaviour.Properties.copy(Blocks.BREWING_STAND)));
 
     private EFBlocks() {
     }
 
     private static BlockBehaviour.Properties furnaceProperties() {
-        return BlockBehaviour.Properties.ofFullCopy(Blocks.FURNACE)
+        return BlockBehaviour.Properties.copy(Blocks.FURNACE)
                 .mapColor(MapColor.STONE)
                 .sound(SoundType.STONE);
     }

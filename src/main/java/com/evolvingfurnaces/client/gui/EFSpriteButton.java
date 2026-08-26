@@ -12,10 +12,10 @@ public class EFSpriteButton extends Button {
 
     public static final int SIZE = 16;
 
-    private static final ResourceLocation BUTTON = EFConstants.id("widget/button");
-    private static final ResourceLocation BUTTON_HOVER = EFConstants.id("widget/button_highlighted");
-    private static final ResourceLocation BUTTON_DISABLED = EFConstants.id("widget/button_disabled");
-    private static final ResourceLocation BUTTON_DISABLED_HOVER = EFConstants.id("widget/button_disabled_highlighted");
+    private static final ResourceLocation BUTTON = EFConstants.widget("button");
+    private static final ResourceLocation BUTTON_HOVER = EFConstants.widget("button_highlighted");
+    private static final ResourceLocation BUTTON_DISABLED = EFConstants.widget("button_disabled");
+    private static final ResourceLocation BUTTON_DISABLED_HOVER = EFConstants.widget("button_disabled_highlighted");
 
     private final Supplier<ResourceLocation> icon;
     private final Supplier<Boolean> disabledChrome;
@@ -66,8 +66,8 @@ public class EFSpriteButton extends Button {
         } else {
             background = hover ? BUTTON_HOVER : BUTTON;
         }
-        graphics.blitSprite(background, x, y, SIZE, SIZE);
-        graphics.blitSprite(icon, x, y, SIZE, SIZE);
+        graphics.blit(background, x, y, 0, 0, SIZE, SIZE, SIZE, SIZE);
+        graphics.blit(icon, x, y, 0, 0, SIZE, SIZE, SIZE, SIZE);
     }
 
     @Override

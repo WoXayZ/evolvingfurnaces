@@ -18,7 +18,6 @@ public class EvolvingBrewingStandMenu extends AbstractContainerMenu {
     private final EvolvingBrewingStandBlockEntity stand;
     private final ContainerData data;
     private final BlockPos blockPos;
-    private final Inventory playerInventory;
 
     public EvolvingBrewingStandMenu(
             int containerId,
@@ -30,7 +29,6 @@ public class EvolvingBrewingStandMenu extends AbstractContainerMenu {
         this.stand = stand;
         this.data = data;
         this.blockPos = stand.getBlockPos();
-        this.playerInventory = inventory;
         addSlot(new PotionSlot(stand, 0, 56, 51));
         addSlot(new PotionSlot(stand, 1, 79, 58));
         addSlot(new PotionSlot(stand, 2, 102, 51));
@@ -130,7 +128,7 @@ public class EvolvingBrewingStandMenu extends AbstractContainerMenu {
     private boolean moveUnstackedToPlayer(ItemStack stack) {
         boolean moved = false;
         while (!stack.isEmpty()) {
-            ItemStack one = stack.copyWithCount(1);
+            ItemStack one = EFStacks.copyWithCount(stack, 1);
             if (!moveItemStackTo(one, 5, 41, true)) {
                 break;
             }
@@ -149,7 +147,7 @@ public class EvolvingBrewingStandMenu extends AbstractContainerMenu {
         for (int i = start; i < end && !stack.isEmpty(); i++) {
             Slot slot = slots.get(i);
             ItemStack existing = slot.getItem();
-            if (existing.isEmpty() || !ItemStack.isSameItemSameComponents(existing, stack) || !slot.mayPlace(stack)) {
+            if (existing.isEmpty() || !ItemStack.isSameItemSameTags(existing, stack) || !slot.mayPlace(stack)) {
                 continue;
             }
             int space = slot.getMaxStackSize(stack) - existing.getCount();
@@ -175,15 +173,11 @@ public class EvolvingBrewingStandMenu extends AbstractContainerMenu {
     }
 
     private boolean isIngredient(ItemStack stack) {
-        return potionBrewing().isIngredient(stack);
+        return PotionBrewing.isIngredient(stack);
     }
 
     private boolean isPotion(ItemStack stack) {
-        return potionBrewing().isInput(stack);
-    }
-
-    private PotionBrewing potionBrewing() {
-        return playerInventory.player.level().potionBrewing();
+        return net.minecraftforge.common.brewing.BrewingRecipeRegistry.isValidInput(stack);
     }
 
     private static EvolvingBrewingStandBlockEntity resolve(Inventory inventory, BlockPos pos) {
@@ -251,11 +245,8 @@ public class EvolvingBrewingStandMenu extends AbstractContainerMenu {
     }
 
     private static final class FuelSlot extends Slot {
-        private final EvolvingBrewingStandBlockEntity stand;
-
         private FuelSlot(EvolvingBrewingStandBlockEntity stand, int slot, int x, int y) {
             super(stand, slot, x, y);
-            this.stand = stand;
         }
 
         @Override

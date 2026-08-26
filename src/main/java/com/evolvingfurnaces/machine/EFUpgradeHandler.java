@@ -7,7 +7,6 @@ import com.evolvingfurnaces.tier.EFMachineTier;
 import com.evolvingfurnaces.tier.EFTierManager;
 import java.util.List;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.HolderLookup;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -26,6 +25,7 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.phys.Vec3;
 
 public final class EFUpgradeHandler {
 
@@ -34,7 +34,7 @@ public final class EFUpgradeHandler {
 
     public static boolean tryUpgrade(ServerPlayer player, BlockPos pos) {
         ServerLevel level = player.serverLevel();
-        if (!level.isLoaded(pos) || player.distanceToSqr(pos.getCenter()) > 64.0D) {
+        if (!level.isLoaded(pos) || player.distanceToSqr(Vec3.atCenterOf(pos)) > 64.0D) {
             return false;
         }
         BlockState state = level.getBlockState(pos);
@@ -77,9 +77,9 @@ public final class EFUpgradeHandler {
         if (blockEntity instanceof EFIoHost machine) {
             machine.setMachineLevel(next.level());
         } else if (blockEntity instanceof AbstractFurnaceBlockEntity furnace) {
-            convertVanillaFurnace(level, pos, state, furnace, kind, next.level(), player.registryAccess());
+            convertVanillaFurnace(level, pos, state, furnace, kind, next.level());
         } else if (blockEntity instanceof BrewingStandBlockEntity brewing) {
-            convertVanillaBrewing(level, pos, state, brewing, next.level(), player.registryAccess());
+            convertVanillaBrewing(level, pos, state, brewing, next.level());
         }
         closeViewers(level, pos);
         level.playSound(null, pos, SoundEvents.PLAYER_LEVELUP, SoundSource.BLOCKS, 0.8F, 1.15F);
@@ -112,10 +112,9 @@ public final class EFUpgradeHandler {
             BlockState oldState,
             AbstractFurnaceBlockEntity vanilla,
             EFMachineKind kind,
-            int newLevel,
-            HolderLookup.Provider registries
+            int newLevel
     ) {
-        CompoundTag tag = vanilla.saveWithoutMetadata(registries);
+        CompoundTag tag = vanilla.saveWithoutMetadata();
         ItemStack[] stacks = copyAndClear(vanilla);
         Block evolving = EFBlocks.block(kind);
         BlockState newState = evolving.defaultBlockState()
@@ -123,7 +122,7 @@ public final class EFUpgradeHandler {
                 .setValue(BlockStateProperties.LIT, oldState.getValue(BlockStateProperties.LIT));
         level.setBlock(pos, newState, Block.UPDATE_ALL);
         if (level.getBlockEntity(pos) instanceof EvolvingMachineBlockEntity machine) {
-            machine.loadVanillaData(tag, stacks, newLevel, registries);
+            machine.loadVanillaData(tag, stacks, newLevel);
         }
     }
 
@@ -132,10 +131,9 @@ public final class EFUpgradeHandler {
             BlockPos pos,
             BlockState oldState,
             BrewingStandBlockEntity vanilla,
-            int newLevel,
-            HolderLookup.Provider registries
+            int newLevel
     ) {
-        CompoundTag tag = vanilla.saveWithoutMetadata(registries);
+        CompoundTag tag = vanilla.saveWithoutMetadata();
         ItemStack[] stacks = copyAndClear(vanilla);
         BlockState newState = EFBlocks.BREWING_STAND.get().defaultBlockState();
         for (int i = 0; i < BrewingStandBlock.HAS_BOTTLE.length; i++) {
@@ -145,7 +143,7 @@ public final class EFUpgradeHandler {
         }
         level.setBlock(pos, newState, Block.UPDATE_ALL);
         if (level.getBlockEntity(pos) instanceof EvolvingBrewingStandBlockEntity machine) {
-            machine.loadVanillaData(tag, stacks, newLevel, registries);
+            machine.loadVanillaData(tag, stacks, newLevel);
         }
     }
 

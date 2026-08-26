@@ -88,7 +88,7 @@ public final class EFDefaultTiers {
                     i + 1,
                     Optional.of(NAMES[i]),
                     new EFDisplayNames(names),
-                    new EFStyleRef(ResourceLocation.parse(BLOCKS[i]), EFTextureFace.SIDE),
+                    new EFStyleRef(new ResourceLocation(BLOCKS[i]), EFTextureFace.SIDE),
                     required,
                     new EFUpgradeCost(List.of(EFCostIngredient.item(BLOCKS[i], 8)), XP[i]),
                     processTime,

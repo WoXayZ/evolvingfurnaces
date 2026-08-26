@@ -14,7 +14,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.RenderType;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
@@ -33,8 +32,8 @@ public final class EFRecipeViewer {
     public static final int COST_Y = 88;
     public static final int MACHINE_X = 132;
 
-    private static final ResourceLocation LEFT = EFConstants.id("widget/page_left");
-    private static final ResourceLocation RIGHT = EFConstants.id("widget/page_right");
+    private static final ResourceLocation LEFT = EFConstants.widget("page_left");
+    private static final ResourceLocation RIGHT = EFConstants.widget("page_right");
 
     private static final Map<EFMachineKind, Integer> INDEX = new EnumMap<>(EFMachineKind.class);
 
@@ -193,7 +192,7 @@ public final class EFRecipeViewer {
         graphics.renderItem(stack, x, y);
         graphics.renderItemDecorations(font, stack, x, y);
         if (inSlot(mouseX, mouseY, x, y)) {
-            graphics.fillGradient(RenderType.guiOverlay(), x, y, x + SLOT, y + SLOT, 0x80FFFFFF, 0x80FFFFFF, 0);
+            graphics.fill(x, y, x + SLOT, y + SLOT, 0x80FFFFFF);
         }
     }
 }

@@ -7,12 +7,23 @@
       "entries": [
         {
           "type": "minecraft:item",
-          "name": "evolvingfurnaces:furnace",
+          "name": "evolvingfurnaces:blast_furnace",
           "functions": [
             {
-              "function": "minecraft:copy_components",
+              "function": "minecraft:copy_nbt",
               "source": "block_entity",
-              "include": ["evolvingfurnaces:machine_level"]
+              "ops": [
+                {
+                  "source": "MachineLevel",
+                  "target": "MachineLevel",
+                  "op": "replace"
+                },
+                {
+                  "source": "MachineLevel",
+                  "target": "BlockEntityTag.MachineLevel",
+                  "op": "replace"
+                }
+              ]
             },
             {
               "function": "minecraft:copy_name",
