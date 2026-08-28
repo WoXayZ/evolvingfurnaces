@@ -30,16 +30,61 @@ public final class EFMachineIo {
         roles[direction.get3DDataValue()] = role;
     }
 
+    public void applyModuleDefaults(EFEnergyModule module) {
+        switch (module) {
+            case GENERATOR -> {
+                set(Direction.UP, EFIoRole.FUEL);
+                set(Direction.DOWN, EFIoRole.ENERGY);
+            }
+            case ELECTRIC -> {
+                set(Direction.UP, EFIoRole.INPUT);
+                set(Direction.DOWN, EFIoRole.OUTPUT);
+            }
+            case NONE -> {
+                resetDefaults();
+                return;
+            }
+        }
+        for (Direction direction : Direction.Plane.HORIZONTAL) {
+            set(direction, EFIoRole.ENERGY);
+        }
+    }
+
     public EFIoRole cycle(Direction direction) {
-        EFIoRole next = get(direction).next();
+        return cycle(direction, EFEnergyModule.NONE);
+    }
+
+    public EFIoRole cycle(Direction direction, EFEnergyModule module) {
+        EFIoRole next = nextRole(get(direction), module);
         set(direction, next);
         return next;
+    }
+
+    private static EFIoRole nextRole(EFIoRole current, EFEnergyModule module) {
+        EFIoRole[] values = EFIoRole.values();
+        EFIoRole candidate = current;
+        for (int i = 0; i < values.length; i++) {
+            candidate = values[(candidate.ordinal() + 1) % values.length];
+            if (allowed(candidate, module)) {
+                return candidate;
+            }
+        }
+        return EFIoRole.DISABLED;
+    }
+
+    private static boolean allowed(EFIoRole role, EFEnergyModule module) {
+        return switch (role) {
+            case INPUT, OUTPUT -> module != EFEnergyModule.GENERATOR;
+            case FUEL -> module != EFEnergyModule.ELECTRIC;
+            case ENERGY -> module.installed();
+            case DISABLED -> true;
+        };
     }
 
     public int pack() {
         int packed = 0;
         for (int i = 0; i < 6; i++) {
-            packed |= roles[i].ordinal() << (i * 2);
+            packed |= roles[i].ordinal() << (i * 3);
         }
         return packed;
     }
@@ -47,7 +92,8 @@ public final class EFMachineIo {
     public void unpack(int packed) {
         EFIoRole[] values = EFIoRole.values();
         for (int i = 0; i < 6; i++) {
-            roles[i] = values[(packed >> (i * 2)) & 3];
+            int ordinal = (packed >> (i * 3)) & 7;
+            roles[i] = ordinal < values.length ? values[ordinal] : EFIoRole.DISABLED;
         }
     }
 

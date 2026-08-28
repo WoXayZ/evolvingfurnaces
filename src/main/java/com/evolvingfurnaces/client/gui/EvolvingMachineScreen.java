@@ -1,17 +1,22 @@
 package com.evolvingfurnaces.client.gui;
 
+import com.evolvingfurnaces.EFConfig;
 import com.evolvingfurnaces.EFConstants;
+import com.evolvingfurnaces.machine.EFEnergyModule;
 import com.evolvingfurnaces.machine.EFMachineTooltips;
 import com.evolvingfurnaces.machine.EFUpgradeHandler;
 import com.evolvingfurnaces.machine.EvolvingMachineBlockEntity;
 import com.evolvingfurnaces.machine.EvolvingMachineMenu;
 import com.evolvingfurnaces.network.EFConfigureIoPayload;
+import com.evolvingfurnaces.network.EFInstallModulePayload;
 import com.evolvingfurnaces.network.EFNetwork;
 import com.evolvingfurnaces.network.EFUpgradeMachinePayload;
+import com.evolvingfurnaces.tier.EFCostIngredient;
 import com.evolvingfurnaces.tier.EFIoRole;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import com.evolvingfurnaces.tier.EFMachineTier;
 import com.evolvingfurnaces.tier.EFTierManager;
+import com.evolvingfurnaces.tier.EFUpgradeCost;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.ChatFormatting;
@@ -28,6 +33,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.level.block.AbstractFurnaceBlock;
 
 public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachineMenu> {
@@ -41,6 +47,12 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
     private static final ResourceLocation UPGRADE = EFConstants.widget("upgrade");
     private static final ResourceLocation UPGRADE_READY = EFConstants.widget("upgrade_ready");
     private static final ResourceLocation UPGRADE_MAX = EFConstants.widget("upgrade_max");
+    private static final ResourceLocation GENERATOR = EFConstants.widget("generator");
+    private static final ResourceLocation GENERATOR_READY = EFConstants.widget("generator_ready");
+    private static final ResourceLocation ELECTRIC = EFConstants.widget("electric");
+    private static final ResourceLocation ELECTRIC_READY = EFConstants.widget("electric_ready");
+    private static final ResourceLocation ENERGY_EMPTY = EFConstants.widget("energy_empty");
+    private static final ResourceLocation ENERGY_FULL = EFConstants.widget("energy_full");
 
     static final int IO_W = 62;
     static final int IO_H = 67;
@@ -50,6 +62,11 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
     private static final int FACE = 8;
     private static final int FACE_GAP = 4;
     private static final int TEXT = 0x404040;
+    private static final int ENERGY_W = 18;
+    private static final int ENERGY_H = 35;
+    private static final int SLOT_INPUT_Y = 17;
+    private static final int SLOT_FUEL_X = 56;
+    private static final int SLOT_OUTPUT_X = 116;
 
     private static boolean rememberedInfoOpen;
     private static boolean rememberedIoOpen;
@@ -60,6 +77,8 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
     private EFSpriteButton ioButton;
     private EFSpriteButton infoButton;
     private EFSpriteButton upgradeButton;
+    private EFSpriteButton generatorButton;
+    private EFSpriteButton electricButton;
 
     public EvolvingMachineScreen(EvolvingMachineMenu menu, Inventory inventory, Component title) {
         super(menu, recipeBook(menu.kind()), inventory, title, TEXTURE);
@@ -123,6 +142,22 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
                     }
                 },
                 Component.translatable("evolvingfurnaces.gui.upgrade")));
+        generatorButton = addRenderableWidget(new EFSpriteButton(
+                generatorButtonX(),
+                buttonY(),
+                () -> moduleIcon(EFEnergyModule.GENERATOR),
+                () -> menu.energyModule() == EFEnergyModule.GENERATOR,
+                true,
+                button -> tryInstall(EFEnergyModule.GENERATOR),
+                Component.translatable("evolvingfurnaces.gui.module.generator")));
+        electricButton = addRenderableWidget(new EFSpriteButton(
+                electricButtonX(),
+                buttonY(),
+                () -> moduleIcon(EFEnergyModule.ELECTRIC),
+                () -> menu.energyModule() == EFEnergyModule.ELECTRIC,
+                true,
+                button -> tryInstall(EFEnergyModule.ELECTRIC),
+                Component.translatable("evolvingfurnaces.gui.module.electric")));
     }
 
     @Override
@@ -137,6 +172,12 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
         if (upgradeButton != null) {
             upgradeButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(upgradeNarration()));
         }
+        if (generatorButton != null) {
+            generatorButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(moduleNarration(EFEnergyModule.GENERATOR)));
+        }
+        if (electricButton != null) {
+            electricButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(moduleNarration(EFEnergyModule.ELECTRIC)));
+        }
     }
 
     @Override
@@ -149,7 +190,26 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
         if (ioOpen) {
             renderIo(graphics, mouseX, mouseY);
         }
+        if (menu.energyModule().installed() && inEnergyBar(mouseX, mouseY)) {
+            graphics.renderComponentTooltip(
+                    font,
+                    List.of(Component.translatable(
+                            "evolvingfurnaces.gui.energy",
+                            menu.energyStored(),
+                            menu.energyCapacity())),
+                    mouseX,
+                    mouseY);
+        }
         renderTooltip(graphics, mouseX, mouseY);
+    }
+
+    @Override
+    protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
+        super.renderBg(graphics, partialTick, mouseX, mouseY);
+        coverUnusedSlots(graphics);
+        if (menu.energyModule().installed()) {
+            blitEnergyBar(graphics, energyBarX(), energyBarY(), menu.energyStored(), menu.energyCapacity());
+        }
     }
 
     @Override
@@ -187,7 +247,13 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
         List<Component> lines = new ArrayList<>();
         EvolvingMachineBlockEntity machine = machine();
         if (machine != null) {
-            EFMachineTooltips.append(lines, menu.kind(), machine.machineLevel(), machine.cooks(), minecraft.player);
+            EFMachineTooltips.appendInfo(
+                    lines,
+                    menu.kind(),
+                    machine.machineLevel(),
+                    machine.cooks(),
+                    menu.energyModule(),
+                    minecraft.player);
         }
         int lineY = y + 18;
         for (Component line : lines) {
@@ -207,8 +273,7 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
             int barY = y + INFO_H - 16;
             blitCooksBar(graphics, barX, barY, machine);
             if (inCooksBar(barX, barY, mouseX, mouseY)) {
-                EFMachineTier next = EFTierManager.nextClient(menu.kind(), machine.machineLevel()).orElse(null);
-                int required = next == null ? Math.max(machine.cooks(), 1) : Math.max(1, next.requiredCooks());
+                int required = EFMachineTooltips.progressGoal(menu.kind(), machine.machineLevel());
                 graphics.renderComponentTooltip(
                         font,
                         List.of(Component.translatable("evolvingfurnaces.gui.cooks_short", machine.cooks(), required)),
@@ -216,6 +281,21 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
                         mouseY);
             }
         }
+    }
+
+    private void blitCooksBar(GuiGraphics graphics, int x, int y, EvolvingMachineBlockEntity machine) {
+        boolean max = EFTierManager.nextClient(menu.kind(), machine.machineLevel()).isEmpty();
+        int barW = INFO_W - 16;
+        graphics.fill(x, y, x + barW, y + 5, 0xFF8B8B8B);
+        graphics.fill(x, y, x + barW - 1, y + 4, 0xFF373737);
+        int required = EFMachineTooltips.progressGoal(menu.kind(), machine.machineLevel());
+        int filled = EFMachineTooltips.progressFill(machine.cooks(), required, barW - 2);
+        int fill = max ? 0xFFB8860B : 0xFF3D7EFF;
+        graphics.fill(x + 1, y + 1, x + 1 + filled, y + 4, fill);
+    }
+
+    private static boolean inCooksBar(int x, int y, int mouseX, int mouseY) {
+        return mouseX >= x && mouseX < x + INFO_W - 16 && mouseY >= y && mouseY < y + 5;
     }
 
     private void renderIo(GuiGraphics graphics, int mouseX, int mouseY) {
@@ -232,7 +312,7 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
         IoFace hoveredCell = null;
         for (IoFace cell : ioFaces()) {
             boolean hover = cell.world == hovered;
-            graphics.blit(ioSprite(machine.io().get(cell.world), hover), cell.x, cell.y, 0.0F, 0.0F, FACE, FACE, FACE, FACE);
+            graphics.blit(ioSprite(machine.io().get(cell.world), machine.energyModule(), hover), cell.x, cell.y, 0.0F, 0.0F, FACE, FACE, FACE, FACE);
             if (hover) {
                 hoveredCell = cell;
             }
@@ -242,26 +322,11 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
                     font,
                     List.of(
                             Component.translatable("evolvingfurnaces.gui.io.rel." + hoveredCell.label),
-                            Component.translatable("evolvingfurnaces.gui.io.role." + machine.io().get(hovered).getSerializedName())
+                            ioRoleLabel(machine.io().get(hovered), machine.energyModule())
                     ),
                     (int) mouseX,
                     (int) mouseY);
         }
-    }
-
-    private void blitCooksBar(GuiGraphics graphics, int x, int y, EvolvingMachineBlockEntity machine) {
-        EFMachineTier next = EFTierManager.nextClient(menu.kind(), machine.machineLevel()).orElse(null);
-        int barW = INFO_W - 16;
-        graphics.fill(x, y, x + barW, y + 5, 0xFF8B8B8B);
-        graphics.fill(x, y, x + barW - 1, y + 4, 0xFF373737);
-        int required = next == null ? 1 : Math.max(1, next.requiredCooks());
-        int filled = next == null ? barW - 2 : Mth.clamp(machine.cooks() * (barW - 2) / required, 0, barW - 2);
-        int fill = next == null ? 0xFFB8860B : 0xFF3D7EFF;
-        graphics.fill(x + 1, y + 1, x + 1 + filled, y + 4, fill);
-    }
-
-    private static boolean inCooksBar(int x, int y, int mouseX, int mouseY) {
-        return mouseX >= x && mouseX < x + INFO_W - 16 && mouseY >= y && mouseY < y + 5;
     }
 
     private void applyLayout() {
@@ -285,6 +350,16 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
         }
         if (upgradeButton != null) {
             upgradeButton.setPosition(upgradeButtonX(), buttonY());
+        }
+        boolean generatorVisible = EFConfig.moduleAvailable(menu.kind(), EFEnergyModule.GENERATOR);
+        boolean electricVisible = EFConfig.moduleAvailable(menu.kind(), EFEnergyModule.ELECTRIC);
+        if (generatorButton != null) {
+            generatorButton.visible = generatorVisible;
+            generatorButton.setPosition(generatorButtonX(), buttonY());
+        }
+        if (electricButton != null) {
+            electricButton.visible = electricVisible;
+            electricButton.setPosition(generatorVisible ? electricButtonX() : generatorButtonX(), buttonY());
         }
         for (var child : children()) {
             if (child instanceof ImageButton image && image.getWidth() == 20 && image.getHeight() == 18) {
@@ -325,6 +400,14 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
 
     private int upgradeButtonX() {
         return leftPos + imageWidth - 20;
+    }
+
+    private int generatorButtonX() {
+        return leftPos + 24;
+    }
+
+    private int electricButtonX() {
+        return leftPos + 42;
     }
 
     private int infoPanelX() {
@@ -400,12 +483,19 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
         return null;
     }
 
-    private static ResourceLocation ioSprite(EFIoRole role, boolean hover) {
-        String name = "io_" + role.getSerializedName();
+    private static ResourceLocation ioSprite(EFIoRole role, EFEnergyModule module, boolean hover) {
+        String name = "io_" + ioSpriteKey(role, module);
         if (hover) {
             name += "_highlighted";
         }
         return EFConstants.widget(name);
+    }
+
+    private static String ioSpriteKey(EFIoRole role, EFEnergyModule module) {
+        if (role == EFIoRole.ENERGY) {
+            return module == EFEnergyModule.GENERATOR ? "energy_output" : "energy_input";
+        }
+        return role.getSerializedName();
     }
 
     private Direction facing() {
@@ -455,6 +545,155 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
     private boolean canUpgrade() {
         return minecraft != null && minecraft.player != null
                 && EFUpgradeHandler.canUpgradeClient(minecraft.player, menu.kind(), menu.machineLevel(), menu.cooks());
+    }
+
+    private void tryInstall(EFEnergyModule module) {
+        boolean shift = hasShiftDown();
+        if (menu.energyModule() == module) {
+            if (shift) {
+                EFNetwork.CHANNEL.sendToServer(new EFInstallModulePayload(menu.blockPos(), EFEnergyModule.NONE, true));
+            }
+            return;
+        }
+        if (menu.energyModule().installed() && !shift) {
+            return;
+        }
+        EFNetwork.CHANNEL.sendToServer(new EFInstallModulePayload(menu.blockPos(), module, shift));
+    }
+
+    private ResourceLocation moduleIcon(EFEnergyModule module) {
+        boolean ready = canInstall(module);
+        if (module == EFEnergyModule.GENERATOR) {
+            return ready ? GENERATOR_READY : GENERATOR;
+        }
+        return ready ? ELECTRIC_READY : ELECTRIC;
+    }
+
+    private boolean canInstall(EFEnergyModule module) {
+        return minecraft != null && minecraft.player != null
+                && EFUpgradeHandler.canInstallModuleClient(minecraft.player, menu.kind(), menu.energyModule(), module);
+    }
+
+    private Component moduleNarration(EFEnergyModule module) {
+        Component name = Component.translatable("evolvingfurnaces.gui.module." + module.getSerializedName());
+        if (menu.energyModule() == module) {
+            List<Component> installed = new ArrayList<>();
+            installed.add(Component.translatable("evolvingfurnaces.gui.module_installed", name));
+            installed.add(Component.translatable("evolvingfurnaces.gui.module_remove"));
+            Component joined = installed.get(0);
+            for (int i = 1; i < installed.size(); i++) {
+                joined = joined.copy().append(Component.literal("\n")).append(installed.get(i));
+            }
+            return joined;
+        }
+        List<Component> lines = new ArrayList<>();
+        lines.add(name);
+        if (menu.energyModule().installed()) {
+            lines.add(Component.translatable("evolvingfurnaces.gui.module_swap"));
+        }
+        EFUpgradeCost cost = EFTierManager.listClient(menu.kind()).moduleCost(module);
+        lines.add(Component.translatable("evolvingfurnaces.gui.xp_cost", cost.experienceLevels()));
+        for (EFCostIngredient item : cost.items()) {
+            lines.add(Component.literal("- " + item.count() + " ").append(costLabel(item)));
+        }
+        Component joined = lines.get(0);
+        for (int i = 1; i < lines.size(); i++) {
+            joined = joined.copy().append(Component.literal("\n")).append(lines.get(i));
+        }
+        return joined;
+    }
+
+    private static Component costLabel(EFCostIngredient cost) {
+        if (cost.itemId().isPresent()) {
+            return Component.translatable(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(cost.itemId().get()).getDescriptionId());
+        }
+        return Component.literal("#" + cost.tagId().map(Object::toString).orElse("tag"));
+    }
+
+    private void blitEnergyBar(GuiGraphics graphics, int x, int y, int stored, int capacity) {
+        graphics.blit(ENERGY_EMPTY, x, y, 0, 0, ENERGY_W, ENERGY_H, ENERGY_W, ENERGY_H);
+        if (stored <= 0 || capacity <= 0) {
+            return;
+        }
+        int filled = Mth.clamp(stored * ENERGY_H / capacity, stored > 0 ? 1 : 0, ENERGY_H);
+        graphics.blit(ENERGY_FULL, x, y + ENERGY_H - filled, 0, ENERGY_H - filled, ENERGY_W, filled, ENERGY_W, ENERGY_H);
+    }
+
+    @Override
+    protected boolean isHovering(int x, int y, int width, int height, double mouseX, double mouseY) {
+        if (width == 16 && height == 16 && coveredEmptySlotAt(x, y)) {
+            return false;
+        }
+        return super.isHovering(x, y, width, height, mouseX, mouseY);
+    }
+
+    private boolean coveredEmptySlotAt(int x, int y) {
+        int count = Math.min(3, menu.slots.size());
+        for (int i = 0; i < count; i++) {
+            Slot slot = menu.slots.get(i);
+            if (slotCovered(slot) && slot.getItem().isEmpty() && slot.x == x && slot.y == y) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private boolean slotCovered(Slot slot) {
+        if (slot.index > 2) {
+            return false;
+        }
+        return switch (menu.energyModule()) {
+            case GENERATOR -> slot.index == 0 || slot.index == 2;
+            case ELECTRIC -> slot.index == 1;
+            case NONE -> false;
+        };
+    }
+
+    private int energyBarX() {
+        return menu.energyModule() == EFEnergyModule.ELECTRIC ? leftPos + SLOT_FUEL_X - 1 : leftPos + SLOT_OUTPUT_X;
+    }
+
+    private int energyBarY() {
+        return menu.energyModule() == EFEnergyModule.ELECTRIC ? topPos + 36 : topPos + SLOT_INPUT_Y + 8;
+    }
+
+    private boolean inEnergyBar(int mouseX, int mouseY) {
+        int x = energyBarX();
+        int y = energyBarY();
+        return mouseX >= x && mouseX < x + ENERGY_W && mouseY >= y && mouseY < y + ENERGY_H;
+    }
+
+    private void coverUnusedSlots(GuiGraphics graphics) {
+        switch (menu.energyModule()) {
+            case GENERATOR -> {
+                coverWithAdjacent(graphics, 55, 16, 18, 18);
+                coverWithAdjacent(graphics, 111, 30, 26, 26);
+            }
+            case ELECTRIC -> coverWithAdjacent(graphics, 55, 36, 18, 35);
+            case NONE -> {
+            }
+        }
+    }
+
+    private void coverWithAdjacent(GuiGraphics graphics, int localX, int localY, int width, int height) {
+        int srcU = localX > 0 ? localX - 1 : localX + width;
+        int x = leftPos + localX;
+        int y = topPos + localY;
+        for (int dx = 0; dx < width; dx++) {
+            graphics.blit(TEXTURE, x + dx, y, srcU, localY, 1, height);
+        }
+    }
+
+    private static Component ioRoleLabel(EFIoRole role, EFEnergyModule module) {
+        if (role == EFIoRole.ENERGY) {
+            if (module == EFEnergyModule.GENERATOR) {
+                return Component.translatable("evolvingfurnaces.gui.io.role.energy_output");
+            }
+            if (module == EFEnergyModule.ELECTRIC) {
+                return Component.translatable("evolvingfurnaces.gui.io.role.energy_input");
+            }
+        }
+        return Component.translatable("evolvingfurnaces.gui.io.role." + role.getSerializedName());
     }
 
     private record IoFace(int x, int y, Direction world, String label) {

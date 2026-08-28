@@ -8,6 +8,7 @@ import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.ItemStack;
@@ -24,10 +25,46 @@ public final class EFMachineTooltips {
         }
         int level = EvolvingMachineItem.levelOf(stack);
         int cooks = cooksOf(stack);
-        append(tooltip, item.kind(), level, cooks, player);
+        append(tooltip, item.kind(), level, cooks, EvolvingMachineItem.moduleOf(stack), EvolvingMachineItem.energyOf(stack), player);
     }
 
     public static void append(List<Component> tooltip, EFMachineKind kind, int level, int cooks, @Nullable Player player) {
+        append(tooltip, kind, level, cooks, EFEnergyModule.NONE, 0, player);
+    }
+
+    public static void append(
+            List<Component> tooltip,
+            EFMachineKind kind,
+            int level,
+            int cooks,
+            EFEnergyModule module,
+            int energy,
+            @Nullable Player player
+    ) {
+        append(tooltip, kind, level, cooks, module, energy, player, true);
+    }
+
+    public static void appendInfo(
+            List<Component> tooltip,
+            EFMachineKind kind,
+            int level,
+            int cooks,
+            EFEnergyModule module,
+            @Nullable Player player
+    ) {
+        append(tooltip, kind, level, cooks, module, 0, player, false);
+    }
+
+    private static void append(
+            List<Component> tooltip,
+            EFMachineKind kind,
+            int level,
+            int cooks,
+            EFEnergyModule module,
+            int energy,
+            @Nullable Player player,
+            boolean energyDetails
+    ) {
         if (level < 1) {
             appendVanilla(tooltip, kind, player);
             return;
@@ -41,11 +78,22 @@ public final class EFMachineTooltips {
         EFMachineTier next = EFTierManager.nextClient(kind, level)
                 .or(() -> EFTierManager.next(kind, level))
                 .orElse(null);
-        int required = next == null ? current.requiredCooks() : next.requiredCooks();
+        int required = progressGoal(kind, level);
         tooltip.add(Component.translatable("evolvingfurnaces.gui.level", current.level()).withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.translatable(kind.timeLangKey(), current.cookTime(), current.cookTime() / 20.0).withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.translatable(kind.batchLangKey(), current.batchSize()).withStyle(ChatFormatting.GRAY));
         tooltip.add(Component.translatable(kind.progressLangKey(), cooks, required).withStyle(ChatFormatting.GRAY));
+        if (kind.isCooking() && module.installed()) {
+            tooltip.add(Component.translatable("evolvingfurnaces.gui.module." + module.getSerializedName()).withStyle(ChatFormatting.YELLOW));
+            if (energyDetails) {
+                tooltip.add(Component.translatable("evolvingfurnaces.gui.energy", energy, current.energyCapacity()).withStyle(ChatFormatting.GRAY));
+                if (module == EFEnergyModule.GENERATOR) {
+                    tooltip.add(Component.translatable("evolvingfurnaces.gui.energy_generate", current.generatorOutput()).withStyle(ChatFormatting.GRAY));
+                } else if (module == EFEnergyModule.ELECTRIC) {
+                    tooltip.add(Component.translatable("evolvingfurnaces.gui.energy_consume", current.energyConsume()).withStyle(ChatFormatting.GRAY));
+                }
+            }
+        }
         if (next == null) {
             tooltip.add(Component.translatable("evolvingfurnaces.gui.max_level").withStyle(ChatFormatting.GOLD));
         } else {
@@ -72,6 +120,26 @@ public final class EFMachineTooltips {
         for (EFCostIngredient cost : next.upgradeCost().items()) {
             tooltip.add(Component.literal("- " + cost.count() + " ").append(costLabel(cost)).withStyle(ChatFormatting.DARK_GRAY));
         }
+    }
+
+    public static int progressGoal(EFMachineKind kind, int level) {
+        EFMachineTier next = EFTierManager.nextClient(kind, level)
+                .or(() -> EFTierManager.next(kind, level))
+                .orElse(null);
+        if (next != null) {
+            return Math.max(1, next.requiredCooks());
+        }
+        EFMachineTier current = EFTierManager.tierClient(kind, level)
+                .or(() -> EFTierManager.tier(kind, level))
+                .orElse(null);
+        return current == null ? 1 : Math.max(1, current.requiredCooks());
+    }
+
+    public static int progressFill(int cooks, int required, int maxPixels) {
+        if (required <= 0 || maxPixels <= 0) {
+            return 0;
+        }
+        return (int) Mth.clamp((long) Math.max(0, cooks) * maxPixels / required, 0, maxPixels);
     }
 
     private static int cooksOf(ItemStack stack) {

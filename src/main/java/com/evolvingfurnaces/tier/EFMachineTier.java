@@ -13,7 +13,10 @@ public record EFMachineTier(
         int requiredCooks,
         EFUpgradeCost upgradeCost,
         int cookTime,
-        int batchSize
+        int batchSize,
+        int energyCapacity,
+        int energyGenerate,
+        int energyConsume
 ) {
 
     public static final Codec<EFMachineTier> CODEC = RecordCodecBuilder.<EFMachineTier>create(instance -> instance.group(
@@ -26,7 +29,10 @@ public record EFMachineTier(
             EFUpgradeCost.CODEC.fieldOf("upgrade_cost").forGetter(EFMachineTier::upgradeCost),
             Codec.INT.optionalFieldOf("cook_time").forGetter(tier -> Optional.of(tier.cookTime)),
             Codec.INT.optionalFieldOf("brew_time").forGetter(tier -> Optional.empty()),
-            Codec.INT.fieldOf("batch_size").forGetter(EFMachineTier::batchSize)
+            Codec.INT.fieldOf("batch_size").forGetter(EFMachineTier::batchSize),
+            Codec.INT.optionalFieldOf("energy_capacity", 0).forGetter(EFMachineTier::energyCapacity),
+            Codec.INT.optionalFieldOf("energy_generate", 0).forGetter(EFMachineTier::energyGenerate),
+            Codec.INT.optionalFieldOf("energy_consume", 0).forGetter(EFMachineTier::energyConsume)
     ).apply(instance, EFMachineTier::fromCodec)).flatXmap(EFMachineTier::validate, EFMachineTier::validate);
 
     private static EFMachineTier fromCodec(
@@ -39,7 +45,10 @@ public record EFMachineTier(
             EFUpgradeCost upgradeCost,
             Optional<Integer> cookTime,
             Optional<Integer> brewTime,
-            int batchSize
+            int batchSize,
+            int energyCapacity,
+            int energyGenerate,
+            int energyConsume
     ) {
         return new EFMachineTier(
                 level,
@@ -49,7 +58,10 @@ public record EFMachineTier(
                 requiredCooks.orElseGet(() -> requiredBrews.orElse(-1)),
                 upgradeCost,
                 cookTime.orElseGet(() -> brewTime.orElse(-1)),
-                batchSize
+                batchSize,
+                energyCapacity,
+                energyGenerate,
+                energyConsume
         );
     }
 
@@ -69,6 +81,15 @@ public record EFMachineTier(
         if (tier.upgradeCost.experienceLevels() < 0) {
             return DataResult.error(() -> "experience_levels must be >= 0 at level " + tier.level);
         }
+        if (tier.energyCapacity < 0) {
+            return DataResult.error(() -> "energy_capacity must be >= 0 at level " + tier.level);
+        }
+        if (tier.energyGenerate < 0) {
+            return DataResult.error(() -> "energy_generate must be >= 0 at level " + tier.level);
+        }
+        if (tier.energyConsume < 0) {
+            return DataResult.error(() -> "energy_consume must be >= 0 at level " + tier.level);
+        }
         if (tier.displayName.byLocale().isEmpty()) {
             return DataResult.error(() -> "display_name must contain at least one locale at level " + tier.level);
         }
@@ -80,5 +101,12 @@ public record EFMachineTier(
 
     public String debugName() {
         return name.orElse("level_" + level);
+    }
+
+    public int generatorOutput() {
+        if (energyGenerate <= 0) {
+            return 0;
+        }
+        return Math.max(1, energyGenerate / 4);
     }
 }

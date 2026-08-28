@@ -7,6 +7,7 @@ public enum EFIoRole implements StringRepresentable {
     INPUT("input"),
     OUTPUT("output"),
     FUEL("fuel"),
+    ENERGY("energy"),
     DISABLED("disabled");
 
     public static final Codec<EFIoRole> CODEC = StringRepresentable.fromEnum(EFIoRole::values);

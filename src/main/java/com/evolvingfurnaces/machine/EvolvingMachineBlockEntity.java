@@ -1,6 +1,8 @@
 package com.evolvingfurnaces.machine;
 
+import com.evolvingfurnaces.EFConfig;
 import com.evolvingfurnaces.registry.EFBlockEntities;
+import com.evolvingfurnaces.tier.EFIoRole;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import com.evolvingfurnaces.tier.EFMachineTier;
 import com.evolvingfurnaces.tier.EFTierManager;
@@ -12,6 +14,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.NonNullList;
 import net.minecraft.nbt.CompoundTag;
 import net.minecraft.nbt.Tag;
+import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.resources.ResourceLocation;
@@ -38,12 +41,14 @@ import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.AbstractFurnaceBlock;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
+import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import net.minecraftforge.common.ForgeHooks;
 import net.minecraftforge.common.capabilities.Capability;
 import net.minecraftforge.common.capabilities.ForgeCapabilities;
 import net.minecraftforge.common.util.LazyOptional;
+import net.minecraftforge.energy.IEnergyStorage;
 import net.minecraftforge.items.IItemHandler;
 import org.jetbrains.annotations.Nullable;
 
@@ -53,7 +58,12 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     public static final int SLOT_INPUT = 0;
     public static final int SLOT_FUEL = 1;
     public static final int SLOT_OUTPUT = 2;
-    public static final int DATA_COUNT = 6;
+    public static final int DATA_ENERGY_LOW = 6;
+    public static final int DATA_ENERGY_HIGH = 7;
+    public static final int DATA_CAPACITY_LOW = 8;
+    public static final int DATA_CAPACITY_HIGH = 9;
+    public static final int DATA_MODULE = 10;
+    public static final int DATA_COUNT = 11;
 
     private static final int[] SLOT_NONE = new int[0];
     private static final int[] SLOT_INPUT_ONLY = {SLOT_INPUT};
@@ -66,6 +76,8 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     private final EFMachineIoHandler[] handlers = new EFMachineIoHandler[7];
     @SuppressWarnings("unchecked")
     private final LazyOptional<IItemHandler>[] lazy = new LazyOptional[7];
+    @SuppressWarnings("unchecked")
+    private final LazyOptional<IEnergyStorage>[] energyLazy = new LazyOptional[7];
     private int machineLevel = 1;
     private int cooks;
     private int litTime;
@@ -74,6 +86,8 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     private int cookingTotalTime;
     private int cachedCookTime = 200;
     private int cachedBatchSize = 1;
+    private EFEnergyModule energyModule = EFEnergyModule.NONE;
+    private final EFMachineEnergy energy = new EFMachineEnergy(this);
     private boolean saveThisTick;
     private boolean convertingToVanilla;
     @Nullable
@@ -93,6 +107,11 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
                 case 3 -> cookingTotalTime;
                 case 4 -> cooks;
                 case 5 -> machineLevel;
+                case DATA_ENERGY_LOW -> packLow(energy.stored());
+                case DATA_ENERGY_HIGH -> packHigh(energy.stored());
+                case DATA_CAPACITY_LOW -> packLow(energyCapacity());
+                case DATA_CAPACITY_HIGH -> packHigh(energyCapacity());
+                case DATA_MODULE -> energyModule.ordinal();
                 default -> 0;
             };
         }
@@ -106,6 +125,9 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
                 case 3 -> cookingTotalTime = value;
                 case 4 -> cooks = Math.max(0, value);
                 case 5 -> machineLevel = Math.max(1, value);
+                case DATA_ENERGY_LOW -> energy.setStored(unpack(value, packHigh(energy.stored())));
+                case DATA_ENERGY_HIGH -> energy.setStored(unpack(packLow(energy.stored()), value));
+                case DATA_MODULE -> energyModule = moduleOf(value);
                 default -> {
                 }
             }
@@ -156,6 +178,22 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         return io;
     }
 
+    public EFEnergyModule energyModule() {
+        return energyModule;
+    }
+
+    public int energyStored() {
+        return energy.stored();
+    }
+
+    public int energyCapacity() {
+        return Math.max(0, tier().energyCapacity());
+    }
+
+    public void onEnergyChanged() {
+        setChanged();
+    }
+
     public void markConvertingToVanilla() {
         convertingToVanilla = true;
     }
@@ -175,10 +213,43 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     public void setMachineLevel(int level) {
         this.machineLevel = Math.max(1, level);
         refreshTierStats();
+        energy.clampToCapacity();
         this.cookingTotalTime = cachedCookTime;
         setChanged();
-        if (this.level != null) {
-            this.level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
+        notifyClient();
+    }
+
+    public void setEnergyModule(EFEnergyModule module) {
+        if (energyModule == module) {
+            return;
+        }
+        energyModule = module;
+        cookingProgress = 0;
+        cycleInputItem = null;
+        litTime = 0;
+        litDuration = 0;
+        io.applyModuleDefaults(module);
+        invalidateCaps();
+        setChanged();
+        notifyClient();
+    }
+
+    private void notifyClient() {
+        if (level == null) {
+            return;
+        }
+        BlockState state = getBlockState();
+        level.sendBlockUpdated(worldPosition, state, state, 3);
+        if (level instanceof ServerLevel server) {
+            ClientboundBlockEntityDataPacket packet = ClientboundBlockEntityDataPacket.create(this);
+            server.getServer().getPlayerList().broadcast(
+                    null,
+                    worldPosition.getX(),
+                    worldPosition.getY(),
+                    worldPosition.getZ(),
+                    64.0,
+                    server.dimension(),
+                    packet);
         }
     }
 
@@ -192,6 +263,23 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         return handler;
     }
 
+    public boolean exposesEnergy(@Nullable Direction side) {
+        if (!energyModule.installed()) {
+            return false;
+        }
+        if (side == null) {
+            return true;
+        }
+        EFIoRole role = io.get(side);
+        if (role == EFIoRole.ENERGY) {
+            return true;
+        }
+        if (energyModule == EFEnergyModule.GENERATOR && role == EFIoRole.OUTPUT) {
+            return true;
+        }
+        return energyModule == EFEnergyModule.ELECTRIC && role == EFIoRole.INPUT;
+    }
+
     @Override
     public <T> LazyOptional<T> getCapability(Capability<T> cap, @Nullable Direction side) {
         if (cap == ForgeCapabilities.ITEM_HANDLER && !isRemoved()) {
@@ -200,6 +288,13 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
                 lazy[index] = LazyOptional.of(() -> handler(side));
             }
             return lazy[index].cast();
+        }
+        if (cap == ForgeCapabilities.ENERGY && !isRemoved() && exposesEnergy(side)) {
+            int index = side == null ? 6 : side.ordinal();
+            if (energyLazy[index] == null) {
+                energyLazy[index] = LazyOptional.of(() -> energy);
+            }
+            return energyLazy[index].cast();
         }
         return super.getCapability(cap, side);
     }
@@ -213,6 +308,12 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
                 lazy[i] = null;
             }
         }
+        for (int i = 0; i < energyLazy.length; i++) {
+            if (energyLazy[i] != null) {
+                energyLazy[i].invalidate();
+                energyLazy[i] = null;
+            }
+        }
     }
 
     /**
@@ -223,50 +324,195 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         if (level instanceof ServerLevel server && EFDisableConverter.convertIfDisabled(server, pos, machine)) {
             return;
         }
-        boolean wasLit = machine.isLit();
-        boolean changed = false;
-        if (wasLit) {
-            machine.litTime--;
+        if (machine.energyModule.installed() && !EFConfig.moduleAvailable(machine.kind(), machine.energyModule)) {
+            machine.setEnergyModule(EFEnergyModule.NONE);
         }
-
-        ItemStack input = machine.items.get(SLOT_INPUT);
-        ItemStack fuel = machine.items.get(SLOT_FUEL);
-
-        if (!machine.isLit() && machine.cookingProgress == 0 && (input.isEmpty() || fuel.isEmpty())) {
-            if (wasLit) {
-                state = state.setValue(AbstractFurnaceBlock.LIT, false);
-                level.setBlock(pos, state, 3);
-                setChanged(level, pos, state);
-            }
-            return;
+        boolean changed = switch (machine.energyModule) {
+            case GENERATOR -> machine.tickGenerator();
+            case ELECTRIC -> machine.tickElectric(level);
+            case NONE -> machine.tickFurnace(level);
+        };
+        if (machine.energyModule == EFEnergyModule.GENERATOR) {
+            changed |= machine.pushEnergy();
         }
-
-        if (machine.isLit()
-                && machine.cookingProgress > 0
-                && !input.isEmpty()
-                && input.getItem() == machine.cycleInputItem) {
-            machine.cookingProgress++;
-            if (machine.cookingProgress >= machine.cookingTotalTime) {
-                machine.cookingProgress = 0;
-                changed |= machine.completeCycle(level);
-            }
-        } else {
-            boolean cooking = machine.tryCook(level, fuel, input);
-            changed |= machine.saveThisTick;
-            if (!cooking && machine.cookingProgress > 0) {
-                machine.cookingProgress = Mth.clamp(machine.cookingProgress - 2, 0, machine.cookingTotalTime);
-                machine.cycleInputItem = null;
-            }
-        }
-
-        if (wasLit != machine.isLit()) {
+        boolean lit = machine.isLit();
+        if (state.getValue(AbstractFurnaceBlock.LIT) != lit) {
             changed = true;
-            state = state.setValue(AbstractFurnaceBlock.LIT, machine.isLit());
+            state = state.setValue(AbstractFurnaceBlock.LIT, lit);
             level.setBlock(pos, state, 3);
         }
         if (changed) {
             setChanged(level, pos, state);
         }
+    }
+
+    private boolean tickFurnace(Level level) {
+        boolean wasLit = isLit();
+        boolean changed = false;
+        if (wasLit) {
+            litTime--;
+        }
+
+        ItemStack input = items.get(SLOT_INPUT);
+        ItemStack fuel = items.get(SLOT_FUEL);
+
+        if (!isLit() && cookingProgress == 0 && (input.isEmpty() || fuel.isEmpty())) {
+            return wasLit;
+        }
+
+        if (isLit()
+                && cookingProgress > 0
+                && !input.isEmpty()
+                && input.getItem() == cycleInputItem) {
+            cookingProgress++;
+            if (cookingProgress >= cookingTotalTime) {
+                cookingProgress = 0;
+                changed |= completeCycle(level);
+            }
+        } else {
+            boolean cooking = tryCook(level, fuel, input);
+            changed |= saveThisTick;
+            if (!cooking && cookingProgress > 0) {
+                cookingProgress = Mth.clamp(cookingProgress - 2, 0, cookingTotalTime);
+                cycleInputItem = null;
+            }
+        }
+        return changed || wasLit != isLit();
+    }
+
+    private boolean tickGenerator() {
+        refreshTierStats();
+        boolean changed = false;
+        int rate = tier().generatorOutput();
+        if (litTime > 0 && energy.hasRoom()) {
+            litTime--;
+            energy.addInternal(rate);
+            changed = true;
+        }
+        if (litTime <= 0 && energy.hasRoom()) {
+            ItemStack fuel = items.get(SLOT_FUEL);
+            int burn = generatorBurnDuration(fuel);
+            if (burn > 0) {
+                consumeFuel(fuel, generatorFuelCount(fuel));
+                litDuration = burn;
+                litTime = burn;
+                energy.addInternal(rate);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    private boolean pushEnergy() {
+        if (level == null || energy.stored() <= 0) {
+            return false;
+        }
+        boolean changed = false;
+        for (Direction direction : Direction.values()) {
+            if (io.get(direction) != EFIoRole.ENERGY || energy.stored() <= 0) {
+                continue;
+            }
+            BlockEntity neighbor = level.getBlockEntity(worldPosition.relative(direction));
+            if (neighbor == null) {
+                continue;
+            }
+            LazyOptional<IEnergyStorage> cap = neighbor.getCapability(ForgeCapabilities.ENERGY, direction.getOpposite());
+            IEnergyStorage target = cap.resolve().orElse(null);
+            if (target == null || !target.canReceive()) {
+                continue;
+            }
+            int offered = energy.extractEnergy(target.receiveEnergy(energy.stored(), true), false);
+            if (offered <= 0) {
+                continue;
+            }
+            int accepted = target.receiveEnergy(offered, false);
+            if (accepted < offered) {
+                energy.addInternal(offered - accepted);
+            }
+            if (accepted > 0) {
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    public void ejectUnusedSlots(Player player, EFEnergyModule module) {
+        int[] slots = switch (module) {
+            case GENERATOR -> new int[] {SLOT_INPUT, SLOT_OUTPUT};
+            case ELECTRIC -> new int[] {SLOT_FUEL};
+            case NONE -> new int[0];
+        };
+        for (int slot : slots) {
+            ItemStack stack = items.get(slot);
+            if (stack.isEmpty()) {
+                continue;
+            }
+            setItem(slot, ItemStack.EMPTY);
+            EFPlayerCosts.giveOrDrop(player, stack);
+        }
+    }
+
+    private boolean tickElectric(Level level) {
+        ItemStack input = items.get(SLOT_INPUT);
+        if (cookingProgress == 0 && input.isEmpty()) {
+            litTime = 0;
+            return false;
+        }
+        boolean cooking;
+        if (cookingProgress > 0 && !input.isEmpty() && input.getItem() == cycleInputItem) {
+            cooking = energy.tryConsume(tier().energyConsume());
+            if (cooking) {
+                cookingProgress++;
+                if (cookingProgress >= cookingTotalTime) {
+                    cookingProgress = 0;
+                    cooking = completeCycle(level) || cooking;
+                }
+            } else if (cookingProgress > 0) {
+                cookingProgress = Mth.clamp(cookingProgress - 2, 0, cookingTotalTime);
+                cycleInputItem = null;
+            }
+        } else {
+            cooking = tryCookElectric(level, input);
+            if (!cooking && cookingProgress > 0) {
+                cookingProgress = Mth.clamp(cookingProgress - 2, 0, cookingTotalTime);
+                cycleInputItem = null;
+            }
+        }
+        litTime = cooking ? 1 : 0;
+        litDuration = 1;
+        return cooking;
+    }
+
+    private boolean tryCookElectric(Level level, ItemStack input) {
+        saveThisTick = false;
+        if (input.isEmpty()) {
+            return false;
+        }
+        if (cookingProgress == 0) {
+            refreshTierStats();
+            cookingTotalTime = cachedCookTime;
+        }
+        AbstractCookingRecipe recipe = quickCheck.getRecipeFor(this, level).orElse(null);
+        if (recipe == null) {
+            return false;
+        }
+        ItemStack result = recipe.assemble(this, level.registryAccess());
+        int batch = computeBatch(result);
+        if (batch < 1) {
+            return false;
+        }
+        cycleInputItem = input.getItem();
+        if (!energy.tryConsume(tier().energyConsume())) {
+            cookingProgress = 0;
+            cycleInputItem = null;
+            return false;
+        }
+        cookingProgress++;
+        if (cookingProgress >= cookingTotalTime) {
+            cookingProgress = 0;
+            saveThisTick |= completeCycle(level);
+        }
+        return true;
     }
 
     private boolean tryCook(Level level, ItemStack fuel, ItemStack input) {
@@ -298,13 +544,7 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
             litDuration = burn;
             litTime = burn;
             saveThisTick = true;
-            if (fuel.hasCraftingRemainingItem()) {
-                setItem(SLOT_FUEL, fuel.getCraftingRemainingItem());
-            } else {
-                ItemStack remaining = fuel.copy();
-                remaining.shrink(1);
-                setItem(SLOT_FUEL, remaining.isEmpty() ? fuel.getCraftingRemainingItem() : remaining);
-            }
+            consumeFuel(fuel, 1);
         }
         if (!isLit()) {
             cookingProgress = 0;
@@ -340,6 +580,23 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         return true;
     }
 
+    private void consumeFuel(ItemStack fuel, int count) {
+        if (fuel.hasCraftingRemainingItem()) {
+            setItem(SLOT_FUEL, fuel.getCraftingRemainingItem());
+            return;
+        }
+        ItemStack remaining = fuel.copy();
+        remaining.shrink(Math.max(1, count));
+        setItem(SLOT_FUEL, remaining.isEmpty() ? fuel.getCraftingRemainingItem() : remaining);
+    }
+
+    private int generatorFuelCount(ItemStack fuel) {
+        if (fuel.hasCraftingRemainingItem()) {
+            return 1;
+        }
+        return Math.min(Math.max(1, tier().batchSize()), fuel.getCount());
+    }
+
     private int computeBatch(ItemStack result) {
         if (result.isEmpty()) {
             return 0;
@@ -359,7 +616,7 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         if (byOutput < 1) {
             return 0;
         }
-        return Math.min(Math.min(cachedBatchSize, input.getCount()), byOutput);
+        return Math.min(Math.min(tier().batchSize(), input.getCount()), byOutput);
     }
 
     private void finishCook(AbstractCookingRecipe recipe, ItemStack result, int batch) {
@@ -384,6 +641,14 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         cachedBatchSize = current.batchSize();
     }
 
+    private int generatorBurnDuration(ItemStack stack) {
+        int burn = getBurnDuration(stack);
+        if (burn <= 0) {
+            return 0;
+        }
+        return Math.max(1, burn / 4);
+    }
+
     protected int getBurnDuration(ItemStack stack) {
         if (stack.isEmpty()) {
             return 0;
@@ -392,6 +657,9 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     }
 
     public boolean isLit() {
+        if (energyModule == EFEnergyModule.GENERATOR) {
+            return litTime > 0 && energy.hasRoom();
+        }
         return litTime > 0;
     }
 
@@ -404,6 +672,8 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         refreshTierStats();
         this.cookingTotalTime = cachedCookTime;
         this.io.resetDefaults();
+        this.energyModule = EFEnergyModule.NONE;
+        this.energy.setStored(0);
         setChanged();
         if (level != null) {
             level.sendBlockUpdated(worldPosition, getBlockState(), getBlockState(), 3);
@@ -497,8 +767,14 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
             return false;
         }
         if (slot == SLOT_FUEL) {
+            if (energyModule == EFEnergyModule.ELECTRIC) {
+                return false;
+            }
             ItemStack fuel = items.get(SLOT_FUEL);
             return getBurnDuration(stack) > 0 || stack.is(Items.BUCKET) && !fuel.is(Items.BUCKET);
+        }
+        if (energyModule == EFEnergyModule.GENERATOR) {
+            return false;
         }
         return level != null && quickCheck.getRecipeFor(new SimpleContainer(stack), level).isPresent();
     }
@@ -509,13 +785,14 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
             case INPUT -> SLOT_INPUT_ONLY;
             case FUEL -> SLOT_FUEL_ONLY;
             case OUTPUT -> SLOT_OUTPUT_ONLY;
-            case DISABLED -> SLOT_NONE;
+            case DISABLED, ENERGY -> SLOT_NONE;
         };
     }
 
     @Override
     public boolean canPlaceItemThroughFace(int slot, ItemStack stack, @Nullable Direction direction) {
-        if (direction != null && io.get(direction) == com.evolvingfurnaces.tier.EFIoRole.DISABLED) {
+        if (direction != null && (io.get(direction) == com.evolvingfurnaces.tier.EFIoRole.DISABLED
+                || io.get(direction) == com.evolvingfurnaces.tier.EFIoRole.ENERGY)) {
             return false;
         }
         return canPlaceItem(slot, stack);
@@ -526,7 +803,7 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         return switch (io.get(direction)) {
             case OUTPUT -> slot == SLOT_OUTPUT;
             case FUEL -> slot == SLOT_FUEL && !stack.is(Items.LAVA_BUCKET);
-            case INPUT, DISABLED -> false;
+            case INPUT, DISABLED, ENERGY -> false;
         };
     }
 
@@ -564,7 +841,10 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         }
         machineLevel = Math.max(1, tag.getInt("MachineLevel"));
         cooks = Math.max(0, tag.getInt("Cooks"));
+        energyModule = moduleOf(tag.getString("EnergyModule"));
+        energy.setStored(tag.getInt("Energy"));
         refreshTierStats();
+        energy.clampToCapacity();
         if (cookingTotalTime < 1) {
             cookingTotalTime = cachedCookTime;
         }
@@ -588,6 +868,8 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         tag.putInt("LitDuration", litDuration);
         tag.putInt("MachineLevel", machineLevel);
         tag.putInt("Cooks", cooks);
+        tag.putString("EnergyModule", energyModule.getSerializedName());
+        tag.putInt("Energy", energy.stored());
         ContainerHelper.saveAllItems(tag, items);
         io.save(tag);
         CompoundTag used = new CompoundTag();
@@ -600,24 +882,60 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         CompoundTag tag = super.getUpdateTag();
         tag.putInt("MachineLevel", machineLevel);
         tag.putInt("Cooks", cooks);
+        tag.putString("EnergyModule", energyModule.getSerializedName());
+        tag.putInt("Energy", energy.stored());
         io.save(tag);
         return tag;
     }
 
     @Override
     public void handleUpdateTag(CompoundTag tag) {
-        if (tag.contains("MachineLevel", Tag.TAG_INT)) {
-            machineLevel = Math.max(1, tag.getInt("MachineLevel"));
-            refreshTierStats();
+        if (tag != null) {
+            load(tag);
         }
-        if (tag.contains("Cooks", Tag.TAG_INT)) {
-            cooks = tag.getInt("Cooks");
+    }
+
+    @Override
+    public void onDataPacket(Connection net, ClientboundBlockEntityDataPacket pkt) {
+        CompoundTag tag = pkt.getTag();
+        if (tag != null) {
+            load(tag);
         }
-        io.load(tag);
     }
 
     @Override
     public ClientboundBlockEntityDataPacket getUpdatePacket() {
         return ClientboundBlockEntityDataPacket.create(this);
+    }
+
+    private static int packLow(int value) {
+        return value & 0x7FFF;
+    }
+
+    private static int packHigh(int value) {
+        return (value >>> 15) & 0x7FFF;
+    }
+
+    private static int unpack(int low, int high) {
+        return (low & 0x7FFF) | ((high & 0x7FFF) << 15);
+    }
+
+    private static EFEnergyModule moduleOf(int ordinal) {
+        EFEnergyModule[] values = EFEnergyModule.values();
+        if (ordinal < 0 || ordinal >= values.length) {
+            return EFEnergyModule.NONE;
+        }
+        return values[ordinal];
+    }
+
+    private static EFEnergyModule moduleOf(String name) {
+        if (name == null || name.isEmpty()) {
+            return EFEnergyModule.NONE;
+        }
+        try {
+            return EFEnergyModule.valueOf(name.toUpperCase());
+        } catch (IllegalArgumentException ignored) {
+            return EFEnergyModule.NONE;
+        }
     }
 }

@@ -27,3 +27,6 @@ Thumbs.db
 
 # Local release jars (not versioned)
 releases/
+
+# Scratch texture dumps (not shipped)
+**/*-tmp/

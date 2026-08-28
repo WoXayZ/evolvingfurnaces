@@ -66,6 +66,10 @@ public enum EFMachineKind {
         };
     }
 
+    public ResourceLocation vanillaFrontOffPng() {
+        return new ResourceLocation("minecraft", "textures/block/" + id + "_front.png");
+    }
+
     public String timeLangKey() {
         return this == BREWING_STAND ? "evolvingfurnaces.gui.brew_time" : "evolvingfurnaces.gui.cook_time";
     }

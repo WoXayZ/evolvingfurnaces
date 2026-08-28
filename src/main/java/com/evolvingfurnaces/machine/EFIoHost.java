@@ -15,6 +15,10 @@ public interface EFIoHost {
 
     void setMachineLevel(int level);
 
+    default EFEnergyModule energyModule() {
+        return EFEnergyModule.NONE;
+    }
+
     EFMachineIo io();
 
     BlockPos getBlockPos();

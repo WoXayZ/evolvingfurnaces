@@ -63,7 +63,7 @@ public class EvolvingMachineBlock extends AbstractFurnaceBlock {
     public ItemStack getCloneItemStack(BlockState state, HitResult target, BlockGetter level, BlockPos pos, Player player) {
         ItemStack stack = new ItemStack(this);
         if (level.getBlockEntity(pos) instanceof EvolvingMachineBlockEntity machine) {
-            return EvolvingMachineItem.withLevel(asItem(), machine.machineLevel());
+            return EvolvingMachineItem.withMachine(asItem(), machine.machineLevel(), machine.energyModule(), 0);
         }
         return stack;
     }
@@ -96,6 +96,10 @@ public class EvolvingMachineBlock extends AbstractFurnaceBlock {
     @Override
     public void animateTick(BlockState state, Level level, BlockPos pos, RandomSource random) {
         if (!state.getValue(LIT)) {
+            return;
+        }
+        if (level.getBlockEntity(pos) instanceof EvolvingMachineBlockEntity machine
+                && machine.energyModule() == EFEnergyModule.ELECTRIC) {
             return;
         }
         double x = pos.getX() + 0.5;

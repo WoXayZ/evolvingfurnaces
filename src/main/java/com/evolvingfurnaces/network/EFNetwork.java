@@ -18,6 +18,7 @@ public final class EFNetwork {
         int id = 0;
         CHANNEL.registerMessage(id++, EFSyncTiersPayload.class, EFSyncTiersPayload::encode, EFSyncTiersPayload::decode, EFSyncTiersPayload::handle);
         CHANNEL.registerMessage(id++, EFUpgradeMachinePayload.class, EFUpgradeMachinePayload::encode, EFUpgradeMachinePayload::decode, EFUpgradeMachinePayload::handle);
+        CHANNEL.registerMessage(id++, EFInstallModulePayload.class, EFInstallModulePayload::encode, EFInstallModulePayload::decode, EFInstallModulePayload::handle);
         CHANNEL.registerMessage(id++, EFConfigureIoPayload.class, EFConfigureIoPayload::encode, EFConfigureIoPayload::decode, EFConfigureIoPayload::handle);
     }
 }

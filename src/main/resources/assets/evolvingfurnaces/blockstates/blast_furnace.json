@@ -1,4 +1,4 @@
-﻿{
+{
   "variants": {
     "facing=north,lit=false": { "model": "minecraft:block/blast_furnace" },
     "facing=north,lit=true": { "model": "minecraft:block/blast_furnace_on" },

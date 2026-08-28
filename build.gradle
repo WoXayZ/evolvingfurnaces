@@ -143,6 +143,22 @@ tasks.named('jar', Jar).configure {
     finalizedBy 'reobfJar'
 }
 
+tasks.register('copyReleaseJar', Copy) {
+    from jar.archiveFile
+    into "releases/${project.version}"
+}
+
+afterEvaluate {
+    def reobf = tasks.findByName('reobfJar')
+    if (reobf != null) {
+        reobf.finalizedBy 'copyReleaseJar'
+        tasks.named('copyReleaseJar').configure { dependsOn reobf }
+    } else {
+        tasks.named('jar').configure { finalizedBy 'copyReleaseJar' }
+        tasks.named('copyReleaseJar').configure { dependsOn jar }
+    }
+}
+
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
     options.release = 17

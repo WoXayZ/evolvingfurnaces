@@ -22,6 +22,26 @@
                   "source": "MachineLevel",
                   "target": "BlockEntityTag.MachineLevel",
                   "op": "replace"
+                },
+                {
+                  "source": "EnergyModule",
+                  "target": "EnergyModule",
+                  "op": "replace"
+                },
+                {
+                  "source": "EnergyModule",
+                  "target": "BlockEntityTag.EnergyModule",
+                  "op": "replace"
+                },
+                {
+                  "source": "Energy",
+                  "target": "Energy",
+                  "op": "replace"
+                },
+                {
+                  "source": "Energy",
+                  "target": "BlockEntityTag.Energy",
+                  "op": "replace"
                 }
               ]
             },

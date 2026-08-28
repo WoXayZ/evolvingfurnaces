@@ -10,7 +10,6 @@ import com.evolvingfurnaces.network.EFNetwork;
 import com.evolvingfurnaces.network.EFUpgradeMachinePayload;
 import com.evolvingfurnaces.tier.EFIoRole;
 import com.evolvingfurnaces.tier.EFMachineKind;
-import com.evolvingfurnaces.tier.EFMachineTier;
 import com.evolvingfurnaces.tier.EFTierManager;
 import java.util.ArrayList;
 import java.util.List;
@@ -206,8 +205,7 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
             int barY = y + INFO_H - 16;
             blitBrewsBar(graphics, barX, barY, machine);
             if (inBrewsBar(barX, barY, mouseX, mouseY)) {
-                EFMachineTier next = EFTierManager.nextClient(EFMachineKind.BREWING_STAND, machine.machineLevel()).orElse(null);
-                int required = next == null ? Math.max(machine.cooks(), 1) : Math.max(1, next.requiredCooks());
+                int required = EFMachineTooltips.progressGoal(EFMachineKind.BREWING_STAND, machine.machineLevel());
                 graphics.renderComponentTooltip(
                         font,
                         List.of(Component.translatable("evolvingfurnaces.gui.cooks_short", machine.cooks(), required)),
@@ -218,13 +216,13 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
     }
 
     private void blitBrewsBar(GuiGraphics graphics, int x, int y, EvolvingBrewingStandBlockEntity machine) {
-        EFMachineTier next = EFTierManager.nextClient(EFMachineKind.BREWING_STAND, machine.machineLevel()).orElse(null);
+        boolean max = EFTierManager.nextClient(EFMachineKind.BREWING_STAND, machine.machineLevel()).isEmpty();
         int barW = INFO_W - 16;
         graphics.fill(x, y, x + barW, y + 5, 0xFF8B8B8B);
         graphics.fill(x, y, x + barW - 1, y + 4, 0xFF373737);
-        int required = next == null ? 1 : Math.max(1, next.requiredCooks());
-        int filled = next == null ? barW - 2 : Mth.clamp(machine.cooks() * (barW - 2) / required, 0, barW - 2);
-        int fill = next == null ? 0xFFB8860B : 0xFF3D7EFF;
+        int required = EFMachineTooltips.progressGoal(EFMachineKind.BREWING_STAND, machine.machineLevel());
+        int filled = EFMachineTooltips.progressFill(machine.cooks(), required, barW - 2);
+        int fill = max ? 0xFFB8860B : 0xFF3D7EFF;
         graphics.fill(x + 1, y + 1, x + 1 + filled, y + 4, fill);
     }
 
@@ -382,7 +380,7 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
     }
 
     private static ResourceLocation ioSprite(EFIoRole role, boolean hover) {
-        String name = "io_" + role.getSerializedName();
+        String name = "io_" + (role == EFIoRole.ENERGY ? "fuel" : role.getSerializedName());
         if (hover) {
             name += "_highlighted";
         }

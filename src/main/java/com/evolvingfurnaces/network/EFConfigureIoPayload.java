@@ -1,6 +1,7 @@
 package com.evolvingfurnaces.network;
 
 import com.evolvingfurnaces.machine.EFIoHost;
+import com.evolvingfurnaces.machine.EvolvingMachineBlockEntity;
 import java.util.function.Supplier;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -31,8 +32,11 @@ public record EFConfigureIoPayload(BlockPos pos, Direction face) {
                 return;
             }
             if (player.level().getBlockEntity(payload.pos()) instanceof EFIoHost machine) {
-                machine.io().cycle(payload.face());
+                machine.io().cycle(payload.face(), machine.energyModule());
                 machine.setChanged();
+                if (machine instanceof EvolvingMachineBlockEntity cooking) {
+                    cooking.invalidateCaps();
+                }
                 player.level().sendBlockUpdated(payload.pos(), machine.getBlockState(), machine.getBlockState(), 3);
             }
         });

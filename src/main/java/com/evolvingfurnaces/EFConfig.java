@@ -1,5 +1,6 @@
 package com.evolvingfurnaces;
 
+import com.evolvingfurnaces.machine.EFEnergyModule;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import net.minecraftforge.common.ForgeConfigSpec;
 
@@ -10,6 +11,8 @@ public final class EFConfig {
     public static final ForgeConfigSpec.BooleanValue BLAST_FURNACE_ENABLED;
     public static final ForgeConfigSpec.BooleanValue SMOKER_ENABLED;
     public static final ForgeConfigSpec.BooleanValue BREWING_STAND_ENABLED;
+    public static final ForgeConfigSpec.BooleanValue GENERATOR_ENABLED;
+    public static final ForgeConfigSpec.BooleanValue ELECTRIC_ENABLED;
 
     static {
         ForgeConfigSpec.Builder builder = new ForgeConfigSpec.Builder();
@@ -50,6 +53,24 @@ public final class EFConfig {
                 .define("enabled", true);
         builder.pop();
 
+        builder.push("generator");
+        GENERATOR_ENABLED = builder
+                .comment(
+                        "If false, the generator module cannot be installed and its GUI button is hidden.",
+                        "Already installed generator modules are removed on tick; the furnace keeps its tier, cooks, contents and goes back to cooking.",
+                        "Cables no longer extract FE from that machine.")
+                .define("enabled", true);
+        builder.pop();
+
+        builder.push("electric");
+        ELECTRIC_ENABLED = builder
+                .comment(
+                        "If false, the electric module cannot be installed and its GUI button is hidden.",
+                        "Already installed electric modules are removed on tick; the furnace keeps its tier, cooks, contents and goes back to burning fuel.",
+                        "Cables no longer insert FE into that machine.")
+                .define("enabled", true);
+        builder.pop();
+
         SPEC = builder.build();
     }
 
@@ -63,5 +84,29 @@ public final class EFConfig {
             case SMOKER -> SMOKER_ENABLED.get();
             case BREWING_STAND -> BREWING_STAND_ENABLED.get();
         };
+    }
+
+    public static boolean generatorEnabled() {
+        return GENERATOR_ENABLED.get();
+    }
+
+    public static boolean electricEnabled() {
+        return ELECTRIC_ENABLED.get();
+    }
+
+    public static boolean anyEnergyModuleEnabled() {
+        return generatorEnabled() || electricEnabled();
+    }
+
+    public static boolean moduleEnabled(EFEnergyModule module) {
+        return switch (module) {
+            case NONE -> true;
+            case GENERATOR -> generatorEnabled();
+            case ELECTRIC -> electricEnabled();
+        };
+    }
+
+    public static boolean moduleAvailable(EFMachineKind kind, EFEnergyModule module) {
+        return moduleEnabled(module) && module.supportedOn(kind);
     }
 }

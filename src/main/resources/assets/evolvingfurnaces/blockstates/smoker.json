@@ -1,4 +1,4 @@
-﻿{
+{
   "variants": {
     "facing=north,lit=false": { "model": "minecraft:block/smoker" },
     "facing=north,lit=true": { "model": "minecraft:block/smoker_on" },
