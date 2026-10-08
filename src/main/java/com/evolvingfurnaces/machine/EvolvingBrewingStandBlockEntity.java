@@ -9,9 +9,10 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
+import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
 import net.minecraft.server.level.ServerLevel;
@@ -23,6 +24,7 @@ import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.PotionBrewing;
 import net.minecraft.world.level.Level;
@@ -31,7 +33,13 @@ import net.minecraft.world.level.block.BrewingStandBlock;
 import net.minecraft.world.level.block.LevelEvent;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
-import net.neoforged.neoforge.items.IItemHandler;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
+import net.minecraft.util.ProblemReporter;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.item.ItemResource;
 import org.jetbrains.annotations.Nullable;
 
 public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity implements WorldlyContainer, EFIoHost {
@@ -137,7 +145,7 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
     }
 
     private EFMachineTier liveTier() {
-        if (level != null && level.isClientSide) {
+        if (level != null && level.isClientSide()) {
             return EFTierManager.tierClient(kind(), machineLevel)
                     .orElseGet(() -> EFTierManager.listClient(kind()).first().orElseThrow());
         }
@@ -181,7 +189,7 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
         }
     }
 
-    public IItemHandler handler(@Nullable Direction side) {
+    public ResourceHandler<ItemResource> handler(@Nullable Direction side) {
         int index = side == null ? 6 : side.ordinal();
         EFBrewingIoHandler handler = handlers[index];
         if (handler == null) {
@@ -300,7 +308,8 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
     }
 
     private void consumeIngredient(Level level, ItemStack ingredient, int cost) {
-        ItemStack leftover = ingredient.getCraftingRemainingItem();
+        ItemStackTemplate remainder = ingredient.getCraftingRemainder();
+        ItemStack leftover = remainder == null ? ItemStack.EMPTY : remainder.create();
         ingredient.shrink(cost);
         if (!leftover.isEmpty()) {
             leftover = leftover.copyWithCount(leftover.getCount() * cost);
@@ -329,7 +338,7 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
     }
 
     public void loadVanillaData(CompoundTag tag, ItemStack[] stacks, int newLevel, HolderLookup.Provider registries) {
-        loadAdditional(tag, registries);
+        loadAdditional(TagValueInput.create(ProblemReporter.DISCARDING, registries, tag));
         for (int i = 0; i < Math.min(stacks.length, items.size()); i++) {
             items.set(i, stacks[i]);
         }
@@ -475,17 +484,15 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        if (tag.contains("Items", Tag.TAG_LIST)) {
-            items = NonNullList.withSize(getContainerSize(), ItemStack.EMPTY);
-            ContainerHelper.loadAllItems(tag, items, registries);
-        }
-        brewTime = tag.getInt("BrewTime");
-        brewTimeTotal = tag.getInt("BrewTimeTotal");
-        fuel = tag.getInt("Fuel");
-        machineLevel = Math.max(1, tag.getInt("MachineLevel"));
-        cooks = Math.max(0, tag.getInt("Cooks"));
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+        items = NonNullList.withSize(getContainerSize(), ItemStack.EMPTY);
+        ContainerHelper.loadAllItems(input, items);
+        brewTime = input.getIntOr("BrewTime", 0);
+        brewTimeTotal = input.getIntOr("BrewTimeTotal", 0);
+        fuel = input.getIntOr("Fuel", 0);
+        machineLevel = Math.max(1, input.getIntOr("MachineLevel", 1));
+        cooks = Math.max(0, input.getIntOr("Cooks", 0));
         refreshTierStats();
         if (brewTimeTotal < 1) {
             brewTimeTotal = cachedBrewTime;
@@ -493,41 +500,47 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
         if (brewTime > 0 && !items.get(SLOT_INGREDIENT).isEmpty()) {
             cycleIngredient = items.get(SLOT_INGREDIENT).getItem();
         }
-        io.load(tag);
+        io.load(input);
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.putInt("BrewTime", brewTime);
-        tag.putInt("BrewTimeTotal", brewTimeTotal);
-        tag.putInt("Fuel", fuel);
-        tag.putInt("MachineLevel", machineLevel);
-        tag.putInt("Cooks", cooks);
-        ContainerHelper.saveAllItems(tag, items, registries);
-        io.save(tag);
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        output.putInt("BrewTime", brewTime);
+        output.putInt("BrewTimeTotal", brewTimeTotal);
+        output.putInt("Fuel", fuel);
+        output.putInt("MachineLevel", machineLevel);
+        output.putInt("Cooks", cooks);
+        ContainerHelper.saveAllItems(output, items);
+        io.save(output);
     }
 
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-        CompoundTag tag = super.getUpdateTag(registries);
-        tag.putInt("MachineLevel", machineLevel);
-        tag.putInt("Cooks", cooks);
-        io.save(tag);
-        return tag;
+        TagValueOutput output = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, registries);
+        output.putInt("MachineLevel", machineLevel);
+        output.putInt("Cooks", cooks);
+        io.save(output);
+        return output.buildResult();
     }
 
     @Override
-    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider registries) {
-        super.handleUpdateTag(tag, registries);
-        if (tag.contains("MachineLevel", Tag.TAG_INT)) {
-            machineLevel = Math.max(1, tag.getInt("MachineLevel"));
+    public void onDataPacket(Connection net, ValueInput input) {
+        handleUpdateTag(input);
+    }
+
+    @Override
+    public void handleUpdateTag(ValueInput input) {
+        if (input.getInt("MachineLevel").isPresent()) {
+            machineLevel = Math.max(1, input.getIntOr("MachineLevel", 1));
             refreshTierStats();
         }
-        if (tag.contains("Cooks", Tag.TAG_INT)) {
-            cooks = tag.getInt("Cooks");
+        if (input.getInt("Cooks").isPresent()) {
+            cooks = input.getIntOr("Cooks", 0);
         }
-        io.load(tag);
+        if (!input.childrenListOrEmpty("Io").isEmpty()) {
+            io.load(input);
+        }
     }
 
     @Override
@@ -536,7 +549,7 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
     }
 
     @Override
-    protected void applyImplicitComponents(DataComponentInput input) {
+    protected void applyImplicitComponents(DataComponentGetter input) {
         super.applyImplicitComponents(input);
         machineLevel = Math.max(1, input.getOrDefault(EFDataComponents.MACHINE_LEVEL.get(), 1));
         refreshTierStats();
@@ -549,8 +562,8 @@ public class EvolvingBrewingStandBlockEntity extends BaseContainerBlockEntity im
     }
 
     @Override
-    public void removeComponentsFromTag(CompoundTag tag) {
-        super.removeComponentsFromTag(tag);
-        tag.remove("MachineLevel");
+    public void removeComponentsFromTag(ValueOutput output) {
+        super.removeComponentsFromTag(output);
+        output.discard("MachineLevel");
     }
 }

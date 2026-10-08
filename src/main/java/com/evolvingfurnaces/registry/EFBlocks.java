@@ -17,18 +17,22 @@ public final class EFBlocks {
 
     public static final DeferredRegister.Blocks BLOCKS = DeferredRegister.createBlocks(EFConstants.MOD_ID);
 
-    public static final DeferredBlock<EvolvingMachineBlock> FURNACE = BLOCKS.register(
+    public static final DeferredBlock<EvolvingMachineBlock> FURNACE = BLOCKS.registerBlock(
             "furnace",
-            () -> new EvolvingMachineBlock(furnaceProperties(), EFMachineKind.FURNACE));
-    public static final DeferredBlock<EvolvingMachineBlock> BLAST_FURNACE = BLOCKS.register(
+            props -> new EvolvingMachineBlock(props, EFMachineKind.FURNACE),
+            EFBlocks::furnaceProperties);
+    public static final DeferredBlock<EvolvingMachineBlock> BLAST_FURNACE = BLOCKS.registerBlock(
             "blast_furnace",
-            () -> new EvolvingMachineBlock(furnaceProperties(), EFMachineKind.BLAST_FURNACE));
-    public static final DeferredBlock<EvolvingMachineBlock> SMOKER = BLOCKS.register(
+            props -> new EvolvingMachineBlock(props, EFMachineKind.BLAST_FURNACE),
+            EFBlocks::furnaceProperties);
+    public static final DeferredBlock<EvolvingMachineBlock> SMOKER = BLOCKS.registerBlock(
             "smoker",
-            () -> new EvolvingMachineBlock(furnaceProperties(), EFMachineKind.SMOKER));
-    public static final DeferredBlock<EvolvingBrewingStandBlock> BREWING_STAND = BLOCKS.register(
+            props -> new EvolvingMachineBlock(props, EFMachineKind.SMOKER),
+            EFBlocks::furnaceProperties);
+    public static final DeferredBlock<EvolvingBrewingStandBlock> BREWING_STAND = BLOCKS.registerBlock(
             "brewing_stand",
-            () -> new EvolvingBrewingStandBlock(BlockBehaviour.Properties.ofFullCopy(Blocks.BREWING_STAND)));
+            EvolvingBrewingStandBlock::new,
+            () -> BlockBehaviour.Properties.ofFullCopy(Blocks.BREWING_STAND));
 
     private EFBlocks() {
     }

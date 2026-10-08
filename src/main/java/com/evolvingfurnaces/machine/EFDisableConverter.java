@@ -14,7 +14,9 @@ import net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BrewingStandBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.level.block.state.properties.BlockStateProperties;
+import net.minecraft.world.level.storage.TagValueInput;
 
 public final class EFDisableConverter {
 
@@ -52,7 +54,7 @@ public final class EFDisableConverter {
         level.setBlock(pos, newState, Block.UPDATE_ALL);
         BlockEntity created = level.getBlockEntity(pos);
         if (created instanceof AbstractFurnaceBlockEntity vanilla) {
-            vanilla.loadWithComponents(tag, registries);
+            vanilla.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING, registries, tag));
             for (int i = 0; i < Math.min(stacks.length, vanilla.getContainerSize()); i++) {
                 vanilla.setItem(i, stacks[i]);
             }
@@ -74,7 +76,7 @@ public final class EFDisableConverter {
         level.setBlock(pos, newState, Block.UPDATE_ALL);
         BlockEntity created = level.getBlockEntity(pos);
         if (created instanceof BrewingStandBlockEntity vanilla) {
-            vanilla.loadWithComponents(tag, registries);
+            vanilla.loadWithComponents(TagValueInput.create(ProblemReporter.DISCARDING, registries, tag));
             for (int i = 0; i < Math.min(stacks.length, vanilla.getContainerSize()); i++) {
                 ItemStack stack = stacks[i];
                 if (i < 3 && stack.getCount() > stack.getMaxStackSize()) {

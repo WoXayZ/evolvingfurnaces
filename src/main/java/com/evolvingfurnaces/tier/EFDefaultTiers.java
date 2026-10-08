@@ -5,7 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public final class EFDefaultTiers {
 
@@ -89,7 +89,7 @@ public final class EFDefaultTiers {
                     i + 1,
                     Optional.of(NAMES[i]),
                     new EFDisplayNames(names),
-                    new EFStyleRef(ResourceLocation.parse(BLOCKS[i]), EFTextureFace.SIDE),
+                    new EFStyleRef(Identifier.parse(BLOCKS[i]), EFTextureFace.SIDE),
                     required,
                     new EFUpgradeCost(List.of(EFCostIngredient.item(BLOCKS[i], 8)), XP[i]),
                     processTime,

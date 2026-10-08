@@ -1,7 +1,7 @@
 plugins {
     id 'java-library'
     id 'maven-publish'
-    id 'net.neoforged.moddev' version '2.0.143'
+    id 'net.neoforged.moddev' version '2.0.148'
 }
 
 version = mod_version
@@ -11,8 +11,9 @@ base {
     archivesName = "${mod_id}-neoforge-${minecraft_version}"
 }
 
+// Mojang ships Java 25 to end users in 26.1.2.
 java {
-    toolchain.languageVersion = JavaLanguageVersion.of(21)
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
 }
 
 repositories {
@@ -26,13 +27,7 @@ repositories {
         url = 'https://maven.blamejared.com'
         content {
             includeGroup 'mezz.jei'
-        }
-    }
-    maven {
-        name = 'SleepingTown'
-        url = 'https://repo.sleeping.town/'
-        content {
-            includeGroup 'dev.emi'
+            includeGroup 'net.mezzdev.config'
         }
     }
     maven {
@@ -62,11 +57,6 @@ repositories {
 neoForge {
     version = project.neo_version
 
-    parchment {
-        minecraftVersion = project.parchment_minecraft_version
-        mappingsVersion = project.parchment_mappings_version
-    }
-
     runs {
         client {
             client()
@@ -94,11 +84,10 @@ configurations {
 }
 
 dependencies {
-    compileOnly("mezz.jei:jei-1.21.1-common-api:${project.jei_version}")
-    compileOnly("mezz.jei:jei-1.21.1-neoforge-api:${project.jei_version}")
-    localRuntime("mezz.jei:jei-1.21.1-neoforge:${project.jei_version}")
+    compileOnly("mezz.jei:jei-${minecraft_version}-common-api:${project.jei_version}")
+    compileOnly("mezz.jei:jei-${minecraft_version}-neoforge-api:${project.jei_version}")
+    localRuntime("mezz.jei:jei-${minecraft_version}-neoforge:${project.jei_version}")
 
-    compileOnly("dev.emi:emi-neoforge:${project.emi_version}:api")
     compileOnly("me.shedaniel:RoughlyEnoughItems-api-neoforge:${project.rei_version}")
     compileOnly("me.shedaniel:RoughlyEnoughItems-neoforge:${project.rei_version}")
 
@@ -111,7 +100,6 @@ var generateModMetadata = tasks.register('generateModMetadata', ProcessResources
             minecraft_version_range: minecraft_version_range,
             neo_version            : neo_version,
             neo_version_range      : neo_version_range,
-            loader_version_range   : loader_version_range,
             mod_id                 : mod_id,
             mod_name               : mod_name,
             mod_license            : mod_license,
@@ -128,6 +116,8 @@ var generateModMetadata = tasks.register('generateModMetadata', ProcessResources
 }
 
 sourceSets.main.resources.srcDir generateModMetadata
+// EMI has no published NeoForge 26.1 artifact. Keep the source, but do not compile it.
+sourceSets.main.java.exclude 'com/evolvingfurnaces/compat/recipeviewer/emi/**'
 neoForge.ideSyncTask generateModMetadata
 
 publishing {
@@ -145,7 +135,7 @@ publishing {
 
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    options.release = 21
+    options.release = 25
 }
 
 tasks.register('copyReleaseJar', Copy) {

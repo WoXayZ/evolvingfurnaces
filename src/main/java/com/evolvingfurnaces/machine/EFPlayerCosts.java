@@ -45,13 +45,13 @@ public final class EFPlayerCosts {
     public static int countMatching(Player player, EFCostIngredient cost) {
         int total = 0;
         Inventory inventory = player.getInventory();
-        for (int i = 0; i < inventory.items.size(); i++) {
-            ItemStack stack = inventory.items.get(i);
+        for (int i = 0; i < Inventory.INVENTORY_SIZE; i++) {
+            ItemStack stack = inventory.getItem(i);
             if (cost.matches(stack)) {
                 total += stack.getCount();
             }
         }
-        ItemStack offhand = inventory.offhand.getFirst();
+        ItemStack offhand = inventory.getItem(Inventory.SLOT_OFFHAND);
         if (cost.matches(offhand)) {
             total += offhand.getCount();
         }
@@ -61,9 +61,9 @@ public final class EFPlayerCosts {
     private static void extract(Player player, EFCostIngredient cost, int amount) {
         int remaining = amount;
         Inventory inventory = player.getInventory();
-        remaining -= extractFromList(inventory.items, cost, remaining);
+        remaining -= extractSlots(inventory, 0, Inventory.INVENTORY_SIZE, cost, remaining);
         if (remaining > 0) {
-            extractFromList(inventory.offhand, cost, remaining);
+            extractSlots(inventory, Inventory.SLOT_OFFHAND, Inventory.SLOT_OFFHAND + 1, cost, remaining);
         }
     }
 
@@ -74,10 +74,10 @@ public final class EFPlayerCosts {
         player.getInventory().placeItemBackInInventory(stack);
     }
 
-    private static int extractFromList(net.minecraft.core.NonNullList<ItemStack> stacks, EFCostIngredient cost, int amount) {
+    private static int extractSlots(Inventory inventory, int from, int to, EFCostIngredient cost, int amount) {
         int taken = 0;
-        for (int i = 0; i < stacks.size() && taken < amount; i++) {
-            ItemStack stack = stacks.get(i);
+        for (int i = from; i < to && taken < amount; i++) {
+            ItemStack stack = inventory.getItem(i);
             if (!cost.matches(stack)) {
                 continue;
             }

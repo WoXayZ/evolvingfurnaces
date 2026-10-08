@@ -1,10 +1,14 @@
 package com.evolvingfurnaces.machine;
 
-import net.neoforged.neoforge.energy.IEnergyStorage;
+import net.neoforged.neoforge.transfer.TransferPreconditions;
+import net.neoforged.neoforge.transfer.energy.EnergyHandler;
+import net.neoforged.neoforge.transfer.transaction.SnapshotJournal;
+import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 
-public final class EFMachineEnergy implements IEnergyStorage {
+public final class EFMachineEnergy implements EnergyHandler {
 
     private final EvolvingMachineBlockEntity machine;
+    private final EnergyJournal journal = new EnergyJournal();
     private int energy;
 
     public EFMachineEnergy(EvolvingMachineBlockEntity machine) {
@@ -16,11 +20,11 @@ public final class EFMachineEnergy implements IEnergyStorage {
     }
 
     public void setStored(int value) {
-        energy = Math.max(0, Math.min(value, getMaxEnergyStored()));
+        energy = Math.max(0, Math.min(value, getCapacityAsInt()));
     }
 
     public void clampToCapacity() {
-        int cap = getMaxEnergyStored();
+        int cap = getCapacityAsInt();
         if (energy > cap) {
             energy = cap;
         }
@@ -30,7 +34,7 @@ public final class EFMachineEnergy implements IEnergyStorage {
         if (amount <= 0) {
             return 0;
         }
-        int accepted = Math.min(amount, Math.max(0, getMaxEnergyStored() - energy));
+        int accepted = Math.min(amount, Math.max(0, getCapacityAsInt() - energy));
         energy += accepted;
         return accepted;
     }
@@ -47,56 +51,63 @@ public final class EFMachineEnergy implements IEnergyStorage {
     }
 
     public boolean hasRoom() {
-        return energy < getMaxEnergyStored();
+        return energy < getCapacityAsInt();
     }
 
     @Override
-    public int receiveEnergy(int maxReceive, boolean simulate) {
-        if (maxReceive <= 0 || machine.energyModule() != EFEnergyModule.ELECTRIC) {
-            return 0;
-        }
-        int accepted = Math.min(maxReceive, Math.max(0, getMaxEnergyStored() - energy));
-        if (!simulate) {
-            energy += accepted;
-            if (accepted > 0) {
-                machine.onEnergyChanged();
-            }
-        }
-        return accepted;
-    }
-
-    @Override
-    public int extractEnergy(int maxExtract, boolean simulate) {
-        if (maxExtract <= 0 || machine.energyModule() != EFEnergyModule.GENERATOR) {
-            return 0;
-        }
-        int extracted = Math.min(maxExtract, energy);
-        if (!simulate) {
-            energy -= extracted;
-            if (extracted > 0) {
-                machine.onEnergyChanged();
-            }
-        }
-        return extracted;
-    }
-
-    @Override
-    public int getEnergyStored() {
+    public long getAmountAsLong() {
         return energy;
     }
 
     @Override
-    public int getMaxEnergyStored() {
+    public long getCapacityAsLong() {
         return machine.energyCapacity();
     }
 
     @Override
-    public boolean canExtract() {
-        return machine.energyModule() == EFEnergyModule.GENERATOR && energy > 0;
+    public int insert(int amount, TransactionContext transaction) {
+        TransferPreconditions.checkNonNegative(amount);
+        if (amount <= 0 || machine.energyModule() != EFEnergyModule.ELECTRIC) {
+            return 0;
+        }
+        int inserted = Math.min(amount, Math.max(0, getCapacityAsInt() - energy));
+        if (inserted > 0) {
+            journal.updateSnapshots(transaction);
+            energy += inserted;
+        }
+        return inserted;
     }
 
     @Override
-    public boolean canReceive() {
-        return machine.energyModule() == EFEnergyModule.ELECTRIC && hasRoom();
+    public int extract(int amount, TransactionContext transaction) {
+        TransferPreconditions.checkNonNegative(amount);
+        if (amount <= 0 || machine.energyModule() != EFEnergyModule.GENERATOR) {
+            return 0;
+        }
+        int extracted = Math.min(amount, energy);
+        if (extracted > 0) {
+            journal.updateSnapshots(transaction);
+            energy -= extracted;
+        }
+        return extracted;
+    }
+
+    private class EnergyJournal extends SnapshotJournal<Integer> {
+        @Override
+        protected Integer createSnapshot() {
+            return energy;
+        }
+
+        @Override
+        protected void revertToSnapshot(Integer snapshot) {
+            energy = snapshot;
+        }
+
+        @Override
+        protected void onRootCommit(Integer originalState) {
+            if (energy != originalState) {
+                machine.onEnergyChanged();
+            }
+        }
     }
 }

@@ -3,6 +3,7 @@ package com.evolvingfurnaces.registry;
 import com.evolvingfurnaces.EFConstants;
 import com.evolvingfurnaces.machine.EvolvingBrewingStandBlockEntity;
 import com.evolvingfurnaces.machine.EvolvingMachineBlockEntity;
+import java.util.Set;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.neoforged.bus.api.IEventBus;
@@ -15,18 +16,16 @@ public final class EFBlockEntities {
             DeferredRegister.create(Registries.BLOCK_ENTITY_TYPE, EFConstants.MOD_ID);
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<EvolvingMachineBlockEntity>> MACHINE =
-            BLOCK_ENTITIES.register("machine", () -> BlockEntityType.Builder.of(
+            BLOCK_ENTITIES.register("machine", () -> new BlockEntityType<>(
                     EvolvingMachineBlockEntity::new,
-                    EFBlocks.FURNACE.get(),
-                    EFBlocks.BLAST_FURNACE.get(),
-                    EFBlocks.SMOKER.get()
-            ).build(null));
+                    Set.of(EFBlocks.FURNACE.get(), EFBlocks.BLAST_FURNACE.get(), EFBlocks.SMOKER.get())
+            ));
 
     public static final DeferredHolder<BlockEntityType<?>, BlockEntityType<EvolvingBrewingStandBlockEntity>> BREWING_STAND =
-            BLOCK_ENTITIES.register("brewing_stand", () -> BlockEntityType.Builder.of(
+            BLOCK_ENTITIES.register("brewing_stand", () -> new BlockEntityType<>(
                     EvolvingBrewingStandBlockEntity::new,
-                    EFBlocks.BREWING_STAND.get()
-            ).build(null));
+                    Set.of(EFBlocks.BREWING_STAND.get())
+            ));
 
     private EFBlockEntities() {
     }

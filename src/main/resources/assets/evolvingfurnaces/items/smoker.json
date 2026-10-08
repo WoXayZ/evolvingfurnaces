@@ -1,0 +1,9 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "evolvingfurnaces:item/smoker",
+    "model": {
+      "type": "evolvingfurnaces:machine"
+    }
+  }
+}

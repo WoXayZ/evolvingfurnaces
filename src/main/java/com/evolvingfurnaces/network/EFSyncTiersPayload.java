@@ -4,7 +4,11 @@ import com.evolvingfurnaces.EFConstants;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import com.evolvingfurnaces.tier.EFTierList;
 import com.evolvingfurnaces.tier.EFTierManager;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonParser;
 import com.mojang.serialization.Codec;
+import com.mojang.serialization.JsonOps;
+import io.netty.handler.codec.DecoderException;
 import java.util.EnumMap;
 import java.util.Map;
 import net.minecraft.network.FriendlyByteBuf;
@@ -21,7 +25,12 @@ public record EFSyncTiersPayload(Map<EFMachineKind, EFTierList> tiers) implement
 
     public static final StreamCodec<FriendlyByteBuf, EFSyncTiersPayload> STREAM_CODEC = StreamCodec.of(
             (buf, payload) -> buf.writeJsonWithCodec(MAP_CODEC, payload.tiers()),
-            buf -> new EFSyncTiersPayload(new EnumMap<>(buf.readJsonWithCodec(MAP_CODEC)))
+            buf -> {
+                JsonElement json = JsonParser.parseString(buf.readUtf());
+                Map<EFMachineKind, EFTierList> map = MAP_CODEC.parse(JsonOps.INSTANCE, json)
+                        .getOrThrow(DecoderException::new);
+                return new EFSyncTiersPayload(new EnumMap<>(map));
+            }
     );
 
     public static EFSyncTiersPayload from(Map<EFMachineKind, EFTierList> tiers) {

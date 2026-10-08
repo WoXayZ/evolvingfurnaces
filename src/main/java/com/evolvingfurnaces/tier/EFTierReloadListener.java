@@ -9,7 +9,7 @@ import java.io.Reader;
 import java.util.EnumMap;
 import java.util.Map;
 import net.minecraft.resources.FileToIdConverter;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.server.packs.resources.SimplePreparableReloadListener;
@@ -23,7 +23,7 @@ public final class EFTierReloadListener extends SimplePreparableReloadListener<M
     protected Map<EFMachineKind, EFTierList> prepare(ResourceManager manager, ProfilerFiller profiler) {
         EnumMap<EFMachineKind, EFTierList> result = new EnumMap<>(EFMachineKind.class);
         for (EFMachineKind kind : EFMachineKind.values()) {
-            ResourceLocation fileId = CONVERTER.idToFile(EFConstants.id(kind.dataPath()));
+            Identifier fileId = CONVERTER.idToFile(EFConstants.id(kind.dataPath()));
             var resources = manager.getResourceStack(fileId);
             if (resources.isEmpty()) {
                 EvolvingFurnaces.LOGGER.warn("Evolving Furnaces: missing {}, using defaults", fileId);

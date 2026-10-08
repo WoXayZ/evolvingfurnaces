@@ -1,14 +1,14 @@
 package com.evolvingfurnaces.client.gui;
 
 import com.evolvingfurnaces.EFConstants;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public class EFVanillaInfoButton extends EFSpriteButton {
 
-    private static final ResourceLocation INFO = EFConstants.id("widget/info");
+    private static final Identifier INFO = EFConstants.id("widget/info");
 
     private final AbstractContainerScreen<?> screen;
 
@@ -23,9 +23,9 @@ public class EFVanillaInfoButton extends EFSpriteButton {
     }
 
     @Override
-    protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         setPosition(infoX(screen), screen.getGuiTop() - 20);
-        super.renderWidget(graphics, mouseX, mouseY, partialTick);
+        super.extractContents(graphics, mouseX, mouseY, partialTick);
     }
 
     static int infoX(AbstractContainerScreen<?> screen) {

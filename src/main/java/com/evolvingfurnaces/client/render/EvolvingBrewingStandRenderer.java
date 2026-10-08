@@ -5,14 +5,18 @@ import com.evolvingfurnaces.tier.EFMachineTier;
 import com.evolvingfurnaces.tier.EFTierManager;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
-import net.minecraft.client.renderer.LightTexture;
-import net.minecraft.client.renderer.MultiBufferSource;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.blockentity.BlockEntityRenderer;
 import net.minecraft.client.renderer.blockentity.BlockEntityRendererProvider;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState;
+import net.minecraft.client.renderer.feature.ModelFeatureRenderer;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.client.renderer.texture.OverlayTexture;
+import net.minecraft.resources.Identifier;
+import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 
-public class EvolvingBrewingStandRenderer implements BlockEntityRenderer<EvolvingBrewingStandBlockEntity> {
+public class EvolvingBrewingStandRenderer implements BlockEntityRenderer<EvolvingBrewingStandBlockEntity, EvolvingBrewingStandRenderer.State> {
 
     private static final float EXPAND = 0.002F;
 
@@ -20,21 +24,31 @@ public class EvolvingBrewingStandRenderer implements BlockEntityRenderer<Evolvin
     }
 
     @Override
-    public void render(
+    public State createRenderState() {
+        return new State();
+    }
+
+    @Override
+    public void extractRenderState(
             EvolvingBrewingStandBlockEntity machine,
+            State state,
             float partialTick,
-            PoseStack poseStack,
-            MultiBufferSource buffers,
-            int packedLight,
-            int packedOverlay
+            Vec3 cameraPosition,
+            ModelFeatureRenderer.@Nullable CrumblingOverlay breakProgress
     ) {
-        renderBase(machine.machineLevel(), poseStack, buffers, packedLight, packedOverlay);
+        BlockEntityRenderer.super.extractRenderState(machine, state, partialTick, cameraPosition, breakProgress);
+        state.machineLevel = machine.machineLevel();
+    }
+
+    @Override
+    public void submit(State state, PoseStack poseStack, SubmitNodeCollector collector, CameraRenderState camera) {
+        renderBase(state.machineLevel, poseStack, collector, state.lightCoords, OverlayTexture.NO_OVERLAY);
     }
 
     public static void renderBase(
             int machineLevel,
             PoseStack poseStack,
-            MultiBufferSource buffers,
+            SubmitNodeCollector collector,
             int packedLight,
             int packedOverlay
     ) {
@@ -42,14 +56,17 @@ public class EvolvingBrewingStandRenderer implements BlockEntityRenderer<Evolvin
         if (tier == null) {
             return;
         }
-        ResourceLocation texture = EFMachineTextureCompositor.brewingBase(tier);
-        int light = packedLight == 0 ? LightTexture.FULL_BRIGHT : packedLight;
-        VertexConsumer consumer = buffers.getBuffer(RenderType.entityCutoutNoCull(texture));
-        PoseStack.Pose pose = poseStack.last();
-        // Vanilla brewing_stand.json base feet, slightly expanded so the fused texture covers the vanilla base.
-        box(pose, consumer, 9, 0, 5, 15, 2, 11, 9, 5, 15, 11, light, packedOverlay);
-        box(pose, consumer, 1, 0, 1, 7, 2, 7, 1, 1, 7, 7, light, packedOverlay);
-        box(pose, consumer, 1, 0, 9, 7, 2, 15, 1, 9, 7, 15, light, packedOverlay);
+        Identifier texture = EFMachineTextureCompositor.brewingBase(tier);
+        collector.submitCustomGeometry(poseStack, EFOverlayRenderType.flush(texture), (pose, consumer) -> {
+            // Vanilla brewing_stand.json base feet, slightly expanded so the fused texture covers the vanilla base.
+            box(pose, consumer, 9, 0, 5, 15, 2, 11, 9, 5, 15, 11, packedLight, packedOverlay);
+            box(pose, consumer, 1, 0, 1, 7, 2, 7, 1, 1, 7, 7, packedLight, packedOverlay);
+            box(pose, consumer, 1, 0, 9, 7, 2, 15, 1, 9, 7, 15, packedLight, packedOverlay);
+        });
+    }
+
+    public static final class State extends BlockEntityRenderState {
+        public int machineLevel = 1;
     }
 
     private static void box(
@@ -83,12 +100,12 @@ public class EvolvingBrewingStandRenderer implements BlockEntityRenderer<Evolvin
         float sideV0 = 14 / 16.0F;
         float sideV1 = 1.0F;
 
-        quad(pose, consumer, x0, y1, z0, us, vs, x1, y1, z0, ue, vs, x1, y1, z1, ue, ve, x0, y1, z1, us, ve, light, overlay, 0, 1, 0);
-        quad(pose, consumer, x0, y0, z1, us, vs, x1, y0, z1, ue, vs, x1, y0, z0, ue, ve, x0, y0, z0, us, ve, light, overlay, 0, -1, 0);
-        quad(pose, consumer, x0, y1, z0, sideU0, sideV0, x1, y1, z0, sideU1, sideV0, x1, y0, z0, sideU1, sideV1, x0, y0, z0, sideU0, sideV1, light, overlay, 0, 0, -1);
-        quad(pose, consumer, x1, y1, z1, sideU0, sideV0, x0, y1, z1, sideU1, sideV0, x0, y0, z1, sideU1, sideV1, x1, y0, z1, sideU0, sideV1, light, overlay, 0, 0, 1);
-        quad(pose, consumer, x0, y1, z1, sideU0, sideV0, x0, y1, z0, sideU1, sideV0, x0, y0, z0, sideU1, sideV1, x0, y0, z1, sideU0, sideV1, light, overlay, -1, 0, 0);
-        quad(pose, consumer, x1, y1, z0, sideU0, sideV0, x1, y1, z1, sideU1, sideV0, x1, y0, z1, sideU1, sideV1, x1, y0, z0, sideU0, sideV1, light, overlay, 1, 0, 0);
+        quad(pose, consumer, x0, y1, z0, us, vs, x0, y1, z1, us, ve, x1, y1, z1, ue, ve, x1, y1, z0, ue, vs, light, overlay, 0, 1, 0);
+        quad(pose, consumer, x0, y0, z1, us, vs, x0, y0, z0, us, ve, x1, y0, z0, ue, ve, x1, y0, z1, ue, vs, light, overlay, 0, -1, 0);
+        quad(pose, consumer, x1, y1, z0, sideU0, sideV0, x1, y0, z0, sideU0, sideV1, x0, y0, z0, sideU1, sideV1, x0, y1, z0, sideU1, sideV0, light, overlay, 0, 0, -1);
+        quad(pose, consumer, x0, y1, z1, sideU0, sideV0, x0, y0, z1, sideU0, sideV1, x1, y0, z1, sideU1, sideV1, x1, y1, z1, sideU1, sideV0, light, overlay, 0, 0, 1);
+        quad(pose, consumer, x0, y1, z0, sideU0, sideV0, x0, y0, z0, sideU0, sideV1, x0, y0, z1, sideU1, sideV1, x0, y1, z1, sideU1, sideV0, light, overlay, -1, 0, 0);
+        quad(pose, consumer, x1, y1, z1, sideU0, sideV0, x1, y0, z1, sideU0, sideV1, x1, y0, z0, sideU1, sideV1, x1, y1, z0, sideU1, sideV0, light, overlay, 1, 0, 0);
     }
 
     private static void quad(
@@ -110,6 +127,11 @@ public class EvolvingBrewingStandRenderer implements BlockEntityRenderer<Evolvin
         vertex(pose, consumer, x4, y4, z4, u4, v4, light, overlay, nx, ny, nz);
     }
 
+    private static int faceShade(float nx, float ny, float nz) {
+        float shade = ny < 0.0F ? 0.5F : ny > 0.0F ? 1.0F : nx != 0.0F ? 0.6F : 0.8F;
+        return Math.round(shade * 255.0F);
+    }
+
     private static void vertex(
             PoseStack.Pose pose,
             VertexConsumer consumer,
@@ -124,11 +146,10 @@ public class EvolvingBrewingStandRenderer implements BlockEntityRenderer<Evolvin
             float ny,
             float nz
     ) {
+        int shade = faceShade(nx, ny, nz);
         consumer.addVertex(pose, x, y, z)
-                .setColor(255, 255, 255, 255)
+                .setColor(shade, shade, shade, 255)
                 .setUv(u, v)
-                .setOverlay(overlay)
-                .setLight(light)
-                .setNormal(pose, nx, ny, nz);
+                .setLight(light);
     }
 }

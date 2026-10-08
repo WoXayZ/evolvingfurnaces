@@ -14,21 +14,21 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.core.Direction;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.ResourceManager;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.state.BlockState;
 
 public final class EFMachineTextureCompositor {
 
-    private static final Map<String, ResourceLocation> CACHE = new ConcurrentHashMap<>();
+    private static final Map<String, Identifier> CACHE = new ConcurrentHashMap<>();
     private static final Map<String, Integer> FRAME_COUNTS = new ConcurrentHashMap<>();
     private static final int GRID = 16;
 
     private EFMachineTextureCompositor() {
     }
 
-    public static ResourceLocation texture(
+    public static Identifier texture(
             EFMachineKind kind,
             EFMachineTier tier,
             Direction face,
@@ -53,7 +53,7 @@ public final class EFMachineTextureCompositor {
         FRAME_COUNTS.clear();
     }
 
-    private static ResourceLocation compose(
+    private static Identifier compose(
             EFMachineKind kind,
             EFMachineTier tier,
             Direction face,
@@ -62,7 +62,7 @@ public final class EFMachineTextureCompositor {
             int frame,
             String key
     ) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("evolvingfurnaces", "dynamic/" + key);
+        Identifier id = Identifier.fromNamespaceAndPath("evolvingfurnaces", "dynamic/" + key);
         Minecraft minecraft = Minecraft.getInstance();
         ResourceManager resources = minecraft.getResourceManager();
         try (NativeImage style = loadStyle(resources, tier.style(), face)) {
@@ -71,11 +71,11 @@ public final class EFMachineTextureCompositor {
             if (style != null) {
                 applyStyle(result, style, kind, face);
             }
-            DynamicTexture texture = new DynamicTexture(result);
+            DynamicTexture texture = new DynamicTexture(() -> "evolvingfurnaces", result);
             minecraft.getTextureManager().register(id, texture);
             return id;
         } catch (IOException e) {
-            return ResourceLocation.withDefaultNamespace("textures/misc/white.png");
+            return Identifier.withDefaultNamespace("textures/misc/white.png");
         }
     }
 
@@ -110,7 +110,8 @@ public final class EFMachineTextureCompositor {
         if (!usesModuleOverlay(kind, face, module)) {
             return;
         }
-        boolean flipX = mirrorsVanillaNorth(kind);
+        // 26.1 orientable models draw the north face without a mirrored UV.
+        boolean flipX = false;
         if (module == EFEnergyModule.ELECTRIC && lit) {
             applyPng(dest, resources, kind.vanillaFrontOffPng(), 0, true, flipX);
             applyPng(dest, resources, moduleFront(kind, module, false), 0, false, flipX);
@@ -120,14 +121,10 @@ public final class EFMachineTextureCompositor {
         applyPng(dest, resources, moduleFront(kind, module, lit), frame, false, flipX);
     }
 
-    private static boolean mirrorsVanillaNorth(EFMachineKind kind) {
-        return kind == EFMachineKind.BLAST_FURNACE || kind == EFMachineKind.SMOKER;
-    }
-
     private static void applyPng(
             NativeImage dest,
             ResourceManager resources,
-            ResourceLocation png,
+            Identifier png,
             int frame,
             boolean copyOpaqueBase,
             boolean flipX
@@ -141,14 +138,14 @@ public final class EFMachineTextureCompositor {
             int height = Math.min(GRID, overlay.getHeight() - srcY);
             for (int py = 0; py < height; py++) {
                 for (int px = 0; px < width; px++) {
-                    int pixel = overlay.getPixelRGBA(px, srcY + py);
+                    int pixel = overlay.getPixel(px, srcY + py);
                     if (copyOpaqueBase) {
                         pixel |= 0xFF000000;
                     } else if (((pixel >> 24) & 0xFF) == 0) {
                         continue;
                     }
                     int destX = flipX ? width - 1 - px : px;
-                    dest.setPixelRGBA(destX, py, pixel);
+                    dest.setPixel(destX, py, pixel);
                 }
             }
         } catch (IOException ignored) {
@@ -159,7 +156,7 @@ public final class EFMachineTextureCompositor {
         if (!usesModuleOverlay(kind, face, module)) {
             return 0;
         }
-        ResourceLocation png = moduleFront(kind, module, lit);
+        Identifier png = moduleFront(kind, module, lit);
         String cacheKey = png.toString();
         int frames = FRAME_COUNTS.computeIfAbsent(cacheKey, ignored -> {
             try (NativeImage overlay = load(Minecraft.getInstance().getResourceManager(), png)) {
@@ -176,8 +173,8 @@ public final class EFMachineTextureCompositor {
         return (int) ((time / Math.max(1, moduleFrametime(png))) % Math.max(1, frames));
     }
 
-    private static int moduleFrametime(ResourceLocation png) {
-        ResourceLocation mcmeta = ResourceLocation.fromNamespaceAndPath(png.getNamespace(), png.getPath() + ".mcmeta");
+    private static int moduleFrametime(Identifier png) {
+        Identifier mcmeta = Identifier.fromNamespaceAndPath(png.getNamespace(), png.getPath() + ".mcmeta");
         var resource = Minecraft.getInstance().getResourceManager().getResource(mcmeta);
         if (resource.isEmpty()) {
             return 1;
@@ -199,7 +196,7 @@ public final class EFMachineTextureCompositor {
         return module == EFEnergyModule.GENERATOR ? kind == EFMachineKind.FURNACE : kind.isCooking();
     }
 
-    private static ResourceLocation moduleFront(EFMachineKind kind, EFEnergyModule module, boolean lit) {
+    private static Identifier moduleFront(EFMachineKind kind, EFEnergyModule module, boolean lit) {
         String suffix = lit ? "_on" : "";
         if (module == EFEnergyModule.GENERATOR) {
             return EFConstants.id("textures/block/generator_front" + suffix + ".png");
@@ -215,12 +212,12 @@ public final class EFMachineTextureCompositor {
                 }
                 int sx = Math.min(style.getWidth() - 1, px * style.getWidth() / GRID);
                 int sy = Math.min(style.getHeight() - 1, py * style.getHeight() / GRID);
-                dest.setPixelRGBA(px, py, style.getPixelRGBA(sx, sy) | 0xFF000000);
+                dest.setPixel(px, py, style.getPixel(sx, sy) | 0xFF000000);
             }
         }
     }
 
-    public static ResourceLocation brewingBase(EFMachineTier tier) {
+    public static Identifier brewingBase(EFMachineTier tier) {
         String key = "brewing_stand/base/" + tier.level() + "/" + frameIndex(tier);
         return CACHE.computeIfAbsent(key, ignored -> composeBrewingBase(tier, key));
     }
@@ -242,8 +239,8 @@ public final class EFMachineTextureCompositor {
     }
 
     private static int frametime(EFMachineTier tier) {
-        ResourceLocation blockId = tier.style().blockId();
-        ResourceLocation mcmeta = ResourceLocation.fromNamespaceAndPath(
+        Identifier blockId = tier.style().blockId();
+        Identifier mcmeta = Identifier.fromNamespaceAndPath(
                 blockId.getNamespace(), "textures/block/" + blockId.getPath() + ".png.mcmeta");
         var resource = Minecraft.getInstance().getResourceManager().getResource(mcmeta);
         if (resource.isEmpty()) {
@@ -259,11 +256,11 @@ public final class EFMachineTextureCompositor {
         return 1;
     }
 
-    private static ResourceLocation composeBrewingBase(EFMachineTier tier, String key) {
-        ResourceLocation id = ResourceLocation.fromNamespaceAndPath("evolvingfurnaces", "dynamic/" + key);
+    private static Identifier composeBrewingBase(EFMachineTier tier, String key) {
+        Identifier id = Identifier.fromNamespaceAndPath("evolvingfurnaces", "dynamic/" + key);
         Minecraft minecraft = Minecraft.getInstance();
         ResourceManager resources = minecraft.getResourceManager();
-        try (NativeImage base = load(resources, ResourceLocation.withDefaultNamespace("textures/block/brewing_stand_base.png"));
+        try (NativeImage base = load(resources, Identifier.withDefaultNamespace("textures/block/brewing_stand_base.png"));
                 NativeImage style = loadStyle(resources, tier.style(), Direction.NORTH)) {
             NativeImage result = new NativeImage(GRID, GRID, true);
             if (base != null && style != null) {
@@ -271,55 +268,43 @@ public final class EFMachineTextureCompositor {
                 int styleY = Math.min(style.getHeight() - GRID, frame * GRID);
                 for (int py = 0; py < GRID; py++) {
                     for (int px = 0; px < GRID; px++) {
-                        int basePixel = base.getPixelRGBA(px, py);
+                        int basePixel = base.getPixel(px, py);
                         int alpha = (basePixel >> 24) & 0xFF;
                         if (alpha == 0) {
-                            result.setPixelRGBA(px, py, 0);
+                            result.setPixel(px, py, 0);
                             continue;
                         }
                         int sx = Math.min(style.getWidth() - 1, px * style.getWidth() / GRID);
                         int sy = Math.min(style.getHeight() - 1, styleY + py * Math.min(GRID, style.getHeight()) / GRID);
-                        int stylePixel = style.getPixelRGBA(sx, sy);
-                        result.setPixelRGBA(px, py, (stylePixel & 0x00FFFFFF) | (alpha << 24));
+                        int stylePixel = style.getPixel(sx, sy);
+                        result.setPixel(px, py, (stylePixel & 0x00FFFFFF) | (alpha << 24));
                     }
                 }
             }
-            DynamicTexture texture = new DynamicTexture(result);
+            DynamicTexture texture = new DynamicTexture(() -> "evolvingfurnaces", result);
             minecraft.getTextureManager().register(id, texture);
             return id;
         } catch (IOException e) {
-            return ResourceLocation.withDefaultNamespace("textures/block/brewing_stand_base.png");
+            return Identifier.withDefaultNamespace("textures/block/brewing_stand_base.png");
         }
     }
 
     private static NativeImage loadStyle(ResourceManager resources, EFStyleRef style, Direction face) throws IOException {
-        Block block = style.block();
-        BlockState state = block.defaultBlockState();
-        ResourceLocation particle = Minecraft.getInstance().getBlockRenderer()
-                .getBlockModelShaper()
-                .getParticleIcon(state)
-                .contents()
-                .name();
-        ResourceLocation png = ResourceLocation.fromNamespaceAndPath(particle.getNamespace(), "textures/" + particle.getPath() + ".png");
-        NativeImage image = load(resources, png);
-        if (image != null) {
-            return image;
-        }
         EFTextureFace requested = style.texture();
         String name = requested == EFTextureFace.SIDE ? "side" : requested.getSerializedName();
-        ResourceLocation guessed = ResourceLocation.fromNamespaceAndPath(
+        Identifier guessed = Identifier.fromNamespaceAndPath(
                 style.blockId().getNamespace(),
                 "textures/block/" + style.blockId().getPath() + "_" + name + ".png");
         NativeImage sided = load(resources, guessed);
         if (sided != null) {
             return sided;
         }
-        return load(resources, ResourceLocation.fromNamespaceAndPath(
+        return load(resources, Identifier.fromNamespaceAndPath(
                 style.blockId().getNamespace(),
                 "textures/block/" + style.blockId().getPath() + ".png"));
     }
 
-    private static NativeImage load(ResourceManager resources, ResourceLocation id) throws IOException {
+    private static NativeImage load(ResourceManager resources, Identifier id) throws IOException {
         var optional = resources.getResource(id);
         if (optional.isEmpty()) {
             return null;

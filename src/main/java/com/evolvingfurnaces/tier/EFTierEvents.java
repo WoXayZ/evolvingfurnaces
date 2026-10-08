@@ -5,7 +5,7 @@ import com.evolvingfurnaces.network.EFSyncTiersPayload;
 import net.minecraft.server.level.ServerPlayer;
 import net.neoforged.bus.api.SubscribeEvent;
 import net.neoforged.fml.common.EventBusSubscriber;
-import net.neoforged.neoforge.event.AddReloadListenerEvent;
+import net.neoforged.neoforge.event.AddServerReloadListenersEvent;
 import net.neoforged.neoforge.event.OnDatapackSyncEvent;
 import net.neoforged.neoforge.network.PacketDistributor;
 
@@ -16,8 +16,8 @@ public final class EFTierEvents {
     }
 
     @SubscribeEvent
-    public static void onAddReloadListeners(AddReloadListenerEvent event) {
-        event.addListener(new EFTierReloadListener());
+    public static void onAddReloadListeners(AddServerReloadListenersEvent event) {
+        event.addListener(EFConstants.id("tiers"), new EFTierReloadListener());
     }
 
     @SubscribeEvent

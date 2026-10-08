@@ -15,15 +15,15 @@ public final class EFCapabilities {
     @SubscribeEvent
     public static void register(RegisterCapabilitiesEvent event) {
         event.registerBlockEntity(
-                Capabilities.ItemHandler.BLOCK,
+                Capabilities.Item.BLOCK,
                 EFBlockEntities.MACHINE.get(),
                 (machine, side) -> machine.handler(side));
         event.registerBlockEntity(
-                Capabilities.ItemHandler.BLOCK,
+                Capabilities.Item.BLOCK,
                 EFBlockEntities.BREWING_STAND.get(),
                 (machine, side) -> machine.handler(side));
         event.registerBlockEntity(
-                Capabilities.EnergyStorage.BLOCK,
+                Capabilities.Energy.BLOCK,
                 EFBlockEntities.MACHINE.get(),
                 (machine, side) -> machine.energyHandler(side));
     }

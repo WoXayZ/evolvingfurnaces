@@ -3,7 +3,6 @@ package com.evolvingfurnaces.registry;
 import com.evolvingfurnaces.EFConstants;
 import com.evolvingfurnaces.machine.EvolvingMachineItem;
 import com.evolvingfurnaces.tier.EFMachineKind;
-import net.minecraft.world.item.Item;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.registries.DeferredItem;
 import net.neoforged.neoforge.registries.DeferredRegister;
@@ -12,18 +11,18 @@ public final class EFItems {
 
     public static final DeferredRegister.Items ITEMS = DeferredRegister.createItems(EFConstants.MOD_ID);
 
-    public static final DeferredItem<EvolvingMachineItem> FURNACE = ITEMS.register(
+    public static final DeferredItem<EvolvingMachineItem> FURNACE = ITEMS.registerItem(
             "furnace",
-            () -> new EvolvingMachineItem(EFBlocks.FURNACE.get(), new Item.Properties(), EFMachineKind.FURNACE));
-    public static final DeferredItem<EvolvingMachineItem> BLAST_FURNACE = ITEMS.register(
+            props -> new EvolvingMachineItem(EFBlocks.FURNACE.get(), props, EFMachineKind.FURNACE));
+    public static final DeferredItem<EvolvingMachineItem> BLAST_FURNACE = ITEMS.registerItem(
             "blast_furnace",
-            () -> new EvolvingMachineItem(EFBlocks.BLAST_FURNACE.get(), new Item.Properties(), EFMachineKind.BLAST_FURNACE));
-    public static final DeferredItem<EvolvingMachineItem> SMOKER = ITEMS.register(
+            props -> new EvolvingMachineItem(EFBlocks.BLAST_FURNACE.get(), props, EFMachineKind.BLAST_FURNACE));
+    public static final DeferredItem<EvolvingMachineItem> SMOKER = ITEMS.registerItem(
             "smoker",
-            () -> new EvolvingMachineItem(EFBlocks.SMOKER.get(), new Item.Properties(), EFMachineKind.SMOKER));
-    public static final DeferredItem<EvolvingMachineItem> BREWING_STAND = ITEMS.register(
+            props -> new EvolvingMachineItem(EFBlocks.SMOKER.get(), props, EFMachineKind.SMOKER));
+    public static final DeferredItem<EvolvingMachineItem> BREWING_STAND = ITEMS.registerItem(
             "brewing_stand",
-            () -> new EvolvingMachineItem(EFBlocks.BREWING_STAND.get(), new Item.Properties(), EFMachineKind.BREWING_STAND));
+            props -> new EvolvingMachineItem(EFBlocks.BREWING_STAND.get(), props, EFMachineKind.BREWING_STAND));
 
     private EFItems() {
     }

@@ -1,0 +1,9 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "evolvingfurnaces:item/blast_furnace",
+    "model": {
+      "type": "evolvingfurnaces:machine"
+    }
+  }
+}

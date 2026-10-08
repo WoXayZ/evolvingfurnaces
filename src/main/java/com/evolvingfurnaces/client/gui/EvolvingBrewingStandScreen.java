@@ -12,32 +12,34 @@ import com.evolvingfurnaces.tier.EFMachineKind;
 import com.evolvingfurnaces.tier.EFTierManager;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 public class EvolvingBrewingStandScreen extends AbstractContainerScreen<EvolvingBrewingStandMenu> {
 
-    private static final ResourceLocation TEXTURE = ResourceLocation.withDefaultNamespace("textures/gui/container/brewing_stand.png");
-    private static final ResourceLocation FUEL_SPRITE = ResourceLocation.withDefaultNamespace("container/brewing_stand/fuel_length");
-    private static final ResourceLocation BREW_PROGRESS = ResourceLocation.withDefaultNamespace("container/brewing_stand/brew_progress");
-    private static final ResourceLocation BUBBLES = ResourceLocation.withDefaultNamespace("container/brewing_stand/bubbles");
+    private static final Identifier TEXTURE = Identifier.withDefaultNamespace("textures/gui/container/brewing_stand.png");
+    private static final Identifier FUEL_SPRITE = Identifier.withDefaultNamespace("container/brewing_stand/fuel_length");
+    private static final Identifier BREW_PROGRESS = Identifier.withDefaultNamespace("container/brewing_stand/brew_progress");
+    private static final Identifier BUBBLES = Identifier.withDefaultNamespace("container/brewing_stand/bubbles");
     private static final int[] BUBBLE_LENGTHS = {29, 24, 20, 16, 11, 6, 0};
 
-    private static final ResourceLocation IO_PANEL = EFConstants.id("textures/gui/io_panel.png");
-    private static final ResourceLocation INFO_PANEL = EFConstants.id("textures/gui/info_panel.png");
-    private static final ResourceLocation IO = EFConstants.id("widget/io");
-    private static final ResourceLocation INFO = EFConstants.id("widget/info");
-    private static final ResourceLocation UPGRADE = EFConstants.id("widget/upgrade");
-    private static final ResourceLocation UPGRADE_READY = EFConstants.id("widget/upgrade_ready");
-    private static final ResourceLocation UPGRADE_MAX = EFConstants.id("widget/upgrade_max");
+    private static final Identifier IO_PANEL = EFConstants.id("textures/gui/io_panel.png");
+    private static final Identifier INFO_PANEL = EFConstants.id("textures/gui/info_panel.png");
+    private static final Identifier IO = EFConstants.id("widget/io");
+    private static final Identifier INFO = EFConstants.id("widget/info");
+    private static final Identifier UPGRADE = EFConstants.id("widget/upgrade");
+    private static final Identifier UPGRADE_READY = EFConstants.id("widget/upgrade_ready");
+    private static final Identifier UPGRADE_MAX = EFConstants.id("widget/upgrade_max");
 
     static final int IO_W = 62;
     static final int IO_H = 67;
@@ -46,7 +48,7 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
     private static final int PANEL_TEX = 256;
     private static final int FACE = 8;
     private static final int FACE_GAP = 4;
-    private static final int TEXT = 0x404040;
+    private static final int TEXT = 0xFF404040;
 
     private static boolean rememberedInfoOpen;
     private static boolean rememberedIoOpen;
@@ -104,7 +106,7 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
                 true,
                 button -> {
                     if (!isMaxLevel()) {
-                        PacketDistributor.sendToServer(new EFUpgradeMachinePayload(menu.blockPos()));
+                        ClientPacketDistributor.sendToServer(new EFUpgradeMachinePayload(menu.blockPos()));
                     }
                 },
                 Component.translatable("evolvingfurnaces.gui.upgrade")));
@@ -120,71 +122,73 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         applyLayout();
-        super.render(graphics, mouseX, mouseY, partialTick);
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         if (infoOpen) {
             renderInfo(graphics, mouseX, mouseY);
         }
         if (ioOpen) {
             renderIo(graphics, mouseX, mouseY);
         }
-        renderTooltip(graphics, mouseX, mouseY);
     }
 
     @Override
-    protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
-        graphics.blit(TEXTURE, leftPos, topPos, 0.0F, 0.0F, imageWidth, imageHeight, 256, 256);
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
+        super.extractBackground(graphics, mouseX, mouseY, partialTick);
+        graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, TEXTURE, leftPos, topPos, 0.0F, 0.0F, imageWidth, imageHeight, 256, 256);
         int fuelWidth = Mth.clamp((18 * menu.fuel() + EvolvingBrewingStandBlockEntity.FUEL_USES - 1)
                 / EvolvingBrewingStandBlockEntity.FUEL_USES, 0, 18);
         if (fuelWidth > 0) {
-            graphics.blitSprite(FUEL_SPRITE, 18, 4, 0, 0, leftPos + 60, topPos + 44, fuelWidth, 4);
+            graphics.blitSprite(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, FUEL_SPRITE, 18, 4, 0, 0, leftPos + 60, topPos + 44, fuelWidth, 4);
         }
         int brewTime = menu.brewTime();
         if (brewTime > 0) {
             int height = (int) (28.0F * (1.0F - (float) brewTime / (float) menu.brewTimeTotal()));
             if (height > 0) {
-                graphics.blitSprite(BREW_PROGRESS, 9, 28, 0, 0, leftPos + 97, topPos + 16, 9, height);
+                graphics.blitSprite(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, BREW_PROGRESS, 9, 28, 0, 0, leftPos + 97, topPos + 16, 9, height);
             }
             int bubble = BUBBLE_LENGTHS[brewTime / 2 % 7];
             if (bubble > 0) {
-                graphics.blitSprite(BUBBLES, 12, 29, 0, 29 - bubble, leftPos + 63, topPos + 14 + 29 - bubble, 12, bubble);
+                graphics.blitSprite(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, BUBBLES, 12, 29, 0, 29 - bubble, leftPos + 63, topPos + 14 + 29 - bubble, 12, bubble);
             }
         }
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && ioOpen) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        if (event.button() == 0 && ioOpen) {
             Direction face = ioFaceAt(mouseX, mouseY);
             if (face != null) {
-                PacketDistributor.sendToServer(new EFConfigureIoPayload(menu.blockPos(), face));
+                ClientPacketDistributor.sendToServer(new EFConfigureIoPayload(menu.blockPos(), face));
                 return true;
             }
             if (inIoPanel(mouseX, mouseY)) {
                 return true;
             }
         }
-        if (button == 0 && infoOpen && inInfoPanel(mouseX, mouseY)) {
+        if (event.button() == 0 && infoOpen && inInfoPanel(mouseX, mouseY)) {
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
-    protected boolean hasClickedOutside(double mouseX, double mouseY, int guiLeft, int guiTop, int mouseButton) {
+    protected boolean hasClickedOutside(double mouseX, double mouseY, int guiLeft, int guiTop) {
         if (inExtraUi(mouseX, mouseY)) {
             return false;
         }
-        return super.hasClickedOutside(mouseX, mouseY, guiLeft, guiTop, mouseButton);
+        return super.hasClickedOutside(mouseX, mouseY, guiLeft, guiTop);
     }
 
-    private void renderInfo(GuiGraphics graphics, int mouseX, int mouseY) {
+    private void renderInfo(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         int x = infoPanelX();
         int y = infoPanelY();
-        graphics.blit(INFO_PANEL, x, y, 0.0F, 0.0F, INFO_W, INFO_H, PANEL_TEX, PANEL_TEX);
+        graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, INFO_PANEL, x, y, 0.0F, 0.0F, INFO_W, INFO_H, PANEL_TEX, PANEL_TEX);
         Component title = Component.translatable("evolvingfurnaces.gui.info");
-        graphics.drawString(font, title, x + (INFO_W - font.width(title)) / 2, y + 5, TEXT, false);
+        graphics.text(font, title, x + (INFO_W - font.width(title)) / 2, y + 5, TEXT, false);
         List<Component> lines = new ArrayList<>();
         EvolvingBrewingStandBlockEntity machine = machine();
         if (machine != null) {
@@ -196,11 +200,11 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
             if (line.getStyle().getColor() != null
                     && ChatFormatting.GOLD.getColor() != null
                     && line.getStyle().getColor().getValue() == ChatFormatting.GOLD.getColor()) {
-                color = 0xB36B00;
+                color = 0xFFB36B00;
             } else {
                 color = TEXT;
             }
-            graphics.drawString(font, line.copy().withStyle(style -> style.withColor(color)), x + 8, lineY, color, false);
+            graphics.text(font, line.copy().withStyle(style -> style.withColor(color)), x + 8, lineY, color, false);
             lineY += 10;
         }
         if (machine != null) {
@@ -209,16 +213,17 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
             blitBrewsBar(graphics, barX, barY, machine);
             if (inBrewsBar(barX, barY, mouseX, mouseY)) {
                 int required = EFMachineTooltips.progressGoal(EFMachineKind.BREWING_STAND, machine.machineLevel());
-                graphics.renderComponentTooltip(
+                graphics.setTooltipForNextFrame(
                         font,
                         List.of(Component.translatable("evolvingfurnaces.gui.cooks_short", machine.cooks(), required)),
+                        Optional.empty(),
                         mouseX,
                         mouseY);
             }
         }
     }
 
-    private void blitBrewsBar(GuiGraphics graphics, int x, int y, EvolvingBrewingStandBlockEntity machine) {
+    private void blitBrewsBar(GuiGraphicsExtractor graphics, int x, int y, EvolvingBrewingStandBlockEntity machine) {
         boolean max = EFTierManager.nextClient(EFMachineKind.BREWING_STAND, machine.machineLevel()).isEmpty();
         int barW = INFO_W - 16;
         graphics.fill(x, y, x + barW, y + 5, 0xFF8B8B8B);
@@ -233,12 +238,12 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
         return mouseX >= x && mouseX < x + INFO_W - 16 && mouseY >= y && mouseY < y + 5;
     }
 
-    private void renderIo(GuiGraphics graphics, int mouseX, int mouseY) {
+    private void renderIo(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         int x = ioPanelX();
         int y = ioPanelY();
-        graphics.blit(IO_PANEL, x, y, 0.0F, 0.0F, IO_W, IO_H, PANEL_TEX, PANEL_TEX);
+        graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, IO_PANEL, x, y, 0.0F, 0.0F, IO_W, IO_H, PANEL_TEX, PANEL_TEX);
         Component title = Component.translatable("evolvingfurnaces.gui.io_config");
-        graphics.drawString(font, title, x + (IO_W - font.width(title)) / 2, y + 5, TEXT, false);
+        graphics.text(font, title, x + (IO_W - font.width(title)) / 2, y + 5, TEXT, false);
         EvolvingBrewingStandBlockEntity machine = machine();
         if (machine == null) {
             return;
@@ -247,18 +252,19 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
         IoFace hoveredCell = null;
         for (IoFace cell : ioFaces()) {
             boolean hover = cell.world == hovered;
-            graphics.blitSprite(ioSprite(machine.io().get(cell.world), hover), cell.x, cell.y, FACE, FACE);
+            graphics.blitSprite(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, ioSprite(machine.io().get(cell.world), hover), cell.x, cell.y, FACE, FACE);
             if (hover) {
                 hoveredCell = cell;
             }
         }
         if (hovered != null && hoveredCell != null) {
-            graphics.renderComponentTooltip(
+                graphics.setTooltipForNextFrame(
                     font,
                     List.of(
                             Component.translatable("evolvingfurnaces.gui.io.rel." + hoveredCell.label),
                             Component.translatable("evolvingfurnaces.gui.io.role." + machine.io().get(hovered).getSerializedName())
                     ),
+                    Optional.empty(),
                     (int) mouseX,
                     (int) mouseY);
         }
@@ -382,7 +388,7 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
         return null;
     }
 
-    private static ResourceLocation ioSprite(EFIoRole role, boolean hover) {
+    private static Identifier ioSprite(EFIoRole role, boolean hover) {
         String name = role == EFIoRole.ENERGY ? "fuel" : role.getSerializedName();
         String path = "widget/io_" + name;
         if (hover) {
@@ -401,7 +407,7 @@ public class EvolvingBrewingStandScreen extends AbstractContainerScreen<Evolving
         return null;
     }
 
-    private ResourceLocation upgradeIcon() {
+    private Identifier upgradeIcon() {
         if (isMaxLevel()) {
             return UPGRADE_MAX;
         }

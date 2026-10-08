@@ -2,29 +2,29 @@ package com.evolvingfurnaces.client.gui;
 
 import com.evolvingfurnaces.EFConstants;
 import java.util.function.Supplier;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public class EFSpriteButton extends Button {
 
     public static final int SIZE = 16;
 
-    private static final ResourceLocation BUTTON = EFConstants.id("widget/button");
-    private static final ResourceLocation BUTTON_HOVER = EFConstants.id("widget/button_highlighted");
-    private static final ResourceLocation BUTTON_DISABLED = EFConstants.id("widget/button_disabled");
-    private static final ResourceLocation BUTTON_DISABLED_HOVER = EFConstants.id("widget/button_disabled_highlighted");
+    private static final Identifier BUTTON = EFConstants.id("widget/button");
+    private static final Identifier BUTTON_HOVER = EFConstants.id("widget/button_highlighted");
+    private static final Identifier BUTTON_DISABLED = EFConstants.id("widget/button_disabled");
+    private static final Identifier BUTTON_DISABLED_HOVER = EFConstants.id("widget/button_disabled_highlighted");
 
-    private final Supplier<ResourceLocation> icon;
+    private final Supplier<Identifier> icon;
     private final Supplier<Boolean> disabledChrome;
     private final boolean disabledHover;
 
     public EFSpriteButton(
             int x,
             int y,
-            Supplier<ResourceLocation> icon,
+            Supplier<Identifier> icon,
             OnPress onPress,
             Component narration
     ) {
@@ -34,7 +34,7 @@ public class EFSpriteButton extends Button {
     public EFSpriteButton(
             int x,
             int y,
-            Supplier<ResourceLocation> icon,
+            Supplier<Identifier> icon,
             Supplier<Boolean> disabledChrome,
             boolean disabledHover,
             OnPress onPress,
@@ -47,31 +47,31 @@ public class EFSpriteButton extends Button {
         setTooltip(Tooltip.create(narration));
     }
 
-    public static void blit(GuiGraphics graphics, int x, int y, ResourceLocation icon, boolean hover, boolean disabled) {
+    public static void blit(GuiGraphicsExtractor graphics, int x, int y, Identifier icon, boolean hover, boolean disabled) {
         blit(graphics, x, y, icon, hover, disabled, true);
     }
 
     public static void blit(
-            GuiGraphics graphics,
+            GuiGraphicsExtractor graphics,
             int x,
             int y,
-            ResourceLocation icon,
+            Identifier icon,
             boolean hover,
             boolean disabled,
             boolean disabledHover
     ) {
-        ResourceLocation background;
+        Identifier background;
         if (disabled) {
             background = hover && disabledHover ? BUTTON_DISABLED_HOVER : BUTTON_DISABLED;
         } else {
             background = hover ? BUTTON_HOVER : BUTTON;
         }
-        graphics.blitSprite(background, x, y, SIZE, SIZE);
-        graphics.blitSprite(icon, x, y, SIZE, SIZE);
+        graphics.blitSprite(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, background, x, y, SIZE, SIZE);
+        graphics.blitSprite(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, icon, x, y, SIZE, SIZE);
     }
 
     @Override
-    protected void renderWidget(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         boolean disabled = disabledChrome.get();
         blit(graphics, getX(), getY(), icon.get(), isHoveredOrFocused(), disabled, disabledHover);
     }

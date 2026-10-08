@@ -43,7 +43,7 @@ public record EFDisplayNames(Map<String, String> byLocale) {
     }
 
     private static String clientLocale() {
-        if (!FMLEnvironment.dist.isClient()) {
+        if (!FMLEnvironment.getDist().isClient()) {
             return "en_us";
         }
         try {

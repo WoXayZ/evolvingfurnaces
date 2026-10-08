@@ -1,9 +1,11 @@
 package com.evolvingfurnaces.tier;
 
 import com.evolvingfurnaces.EFConstants;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.inventory.RecipeBookType;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.crafting.AbstractCookingRecipe;
+import net.minecraft.world.item.crafting.RecipePropertySet;
 import net.minecraft.world.item.crafting.RecipeType;
 import net.minecraft.world.level.block.Block;
 import net.minecraft.world.level.block.Blocks;
@@ -32,12 +34,21 @@ public enum EFMachineKind {
         return id;
     }
 
-    public ResourceLocation dataFile() {
+    public Identifier dataFile() {
         return EFConstants.id(id);
     }
 
     public boolean isCooking() {
         return this != BREWING_STAND;
+    }
+
+    public ResourceKey<RecipePropertySet> recipeInputs() {
+        return switch (this) {
+            case FURNACE -> RecipePropertySet.FURNACE_INPUT;
+            case BLAST_FURNACE -> RecipePropertySet.BLAST_FURNACE_INPUT;
+            case SMOKER -> RecipePropertySet.SMOKER_INPUT;
+            case BREWING_STAND -> throw new IllegalStateException("brewing stand has no furnace inputs");
+        };
     }
 
     public RecipeBookType recipeBookType() {
@@ -66,8 +77,8 @@ public enum EFMachineKind {
         };
     }
 
-    public ResourceLocation vanillaFrontOffPng() {
-        return ResourceLocation.withDefaultNamespace("textures/block/" + id + "_front.png");
+    public Identifier vanillaFrontOffPng() {
+        return Identifier.withDefaultNamespace("textures/block/" + id + "_front.png");
     }
 
     public String timeLangKey() {

@@ -34,7 +34,7 @@ public final class EFUpgradeHandler {
     }
 
     public static boolean tryUpgrade(ServerPlayer player, BlockPos pos) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
         if (!level.isLoaded(pos) || player.distanceToSqr(pos.getCenter()) > 64.0D) {
             return false;
         }
@@ -108,7 +108,7 @@ public final class EFUpgradeHandler {
     }
 
     public static boolean tryInstallModule(ServerPlayer player, BlockPos pos, EFEnergyModule module, boolean shift) {
-        ServerLevel level = player.serverLevel();
+        ServerLevel level = player.level();
         if (!level.isLoaded(pos) || player.distanceToSqr(pos.getCenter()) > 64.0D) {
             return false;
         }

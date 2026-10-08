@@ -4,12 +4,15 @@ import com.evolvingfurnaces.registry.EFDataComponents;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import com.evolvingfurnaces.tier.EFMachineTier;
 import com.evolvingfurnaces.tier.EFTierManager;
+import java.util.ArrayList;
 import java.util.List;
+import java.util.function.Consumer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.BlockItem;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
+import net.minecraft.world.item.component.TooltipDisplay;
 import net.minecraft.world.level.block.Block;
 
 public class EvolvingMachineItem extends BlockItem {
@@ -57,7 +60,9 @@ public class EvolvingMachineItem extends BlockItem {
     }
 
     @Override
-    public void appendHoverText(ItemStack stack, TooltipContext context, List<Component> tooltip, TooltipFlag flag) {
-        EFMachineTooltips.appendItem(stack, tooltip, null);
+    public void appendHoverText(ItemStack stack, TooltipContext context, TooltipDisplay display, Consumer<Component> tooltip, TooltipFlag flag) {
+        List<Component> lines = new ArrayList<>();
+        EFMachineTooltips.appendItem(stack, lines, null);
+        lines.forEach(tooltip);
     }
 }

@@ -17,7 +17,6 @@ import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
-import net.minecraft.world.phys.HitResult;
 import org.jetbrains.annotations.Nullable;
 
 public class EvolvingBrewingStandBlock extends BrewingStandBlock {
@@ -28,7 +27,7 @@ public class EvolvingBrewingStandBlock extends BrewingStandBlock {
 
     @Override
     protected InteractionResult useWithoutItem(BlockState state, Level level, BlockPos pos, Player player, BlockHitResult hit) {
-        if (level.isClientSide) {
+        if (level.isClientSide()) {
             return InteractionResult.SUCCESS;
         }
         BlockEntity blockEntity = level.getBlockEntity(pos);
@@ -47,21 +46,16 @@ public class EvolvingBrewingStandBlock extends BrewingStandBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return level.isClientSide ? null : createTickerHelper(type, EFBlockEntities.BREWING_STAND.get(), EvolvingBrewingStandBlockEntity::serverTick);
+        return level.isClientSide() ? null : createTickerHelper(type, EFBlockEntities.BREWING_STAND.get(), EvolvingBrewingStandBlockEntity::serverTick);
     }
 
     @Override
-    public ItemStack getCloneItemStack(BlockState state, HitResult target, LevelReader level, BlockPos pos, Player player) {
+    public ItemStack getCloneItemStack(LevelReader level, BlockPos pos, BlockState state, boolean includeData, Player player) {
         ItemStack stack = new ItemStack(this);
         if (level.getBlockEntity(pos) instanceof EvolvingBrewingStandBlockEntity machine) {
             stack.set(EFDataComponents.MACHINE_LEVEL.get(), machine.machineLevel());
         }
         return stack;
-    }
-
-    @Override
-    public ItemStack getCloneItemStack(LevelReader level, BlockPos pos, BlockState state) {
-        return getCloneItemStack(state, null, level, pos, null);
     }
 
     @Override

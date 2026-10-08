@@ -2,89 +2,68 @@ package com.evolvingfurnaces.machine;
 
 import com.evolvingfurnaces.tier.EFIoRole;
 import net.minecraft.core.Direction;
-import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.neoforged.neoforge.transfer.item.VanillaContainerWrapper;
+import net.neoforged.neoforge.transfer.transaction.TransactionContext;
 import org.jetbrains.annotations.Nullable;
 
-public final class EFMachineIoHandler implements IItemHandler {
+public final class EFMachineIoHandler implements ResourceHandler<ItemResource> {
 
     public static final int INPUT = 0;
     public static final int FUEL = 1;
     public static final int OUTPUT = 2;
 
     private final EvolvingMachineBlockEntity machine;
+    private final ResourceHandler<ItemResource> items;
     @Nullable
     private final Direction side;
 
     public EFMachineIoHandler(EvolvingMachineBlockEntity machine, @Nullable Direction side) {
         this.machine = machine;
         this.side = side;
+        this.items = VanillaContainerWrapper.of(machine);
     }
 
     @Override
-    public int getSlots() {
+    public int size() {
         return 3;
     }
 
     @Override
-    public ItemStack getStackInSlot(int slot) {
-        return machine.getItem(slot);
+    public ItemResource getResource(int index) {
+        return items.getResource(index);
     }
 
     @Override
-    public ItemStack insertItem(int slot, ItemStack stack, boolean simulate) {
-        if (stack.isEmpty() || !isInsertSlot(slot) || !machine.canPlaceItem(slot, stack)) {
-            return stack;
-        }
-        ItemStack existing = machine.getItem(slot);
-        int limit = Math.min(stack.getMaxStackSize(), machine.getMaxStackSize());
-        if (!existing.isEmpty()) {
-            if (!ItemStack.isSameItemSameComponents(existing, stack)) {
-                return stack;
-            }
-            limit -= existing.getCount();
-        }
-        if (limit <= 0) {
-            return stack;
-        }
-        int toInsert = Math.min(stack.getCount(), limit);
-        if (!simulate) {
-            if (existing.isEmpty()) {
-                machine.setItem(slot, stack.copyWithCount(toInsert));
-            } else {
-                existing.grow(toInsert);
-                machine.setChanged();
-            }
-        }
-        return stack.copyWithCount(stack.getCount() - toInsert);
+    public long getAmountAsLong(int index) {
+        return items.getAmountAsLong(index);
     }
 
     @Override
-    public ItemStack extractItem(int slot, int amount, boolean simulate) {
-        if (amount <= 0 || !isExtractSlot(slot)) {
-            return ItemStack.EMPTY;
-        }
-        ItemStack existing = machine.getItem(slot);
-        if (existing.isEmpty()) {
-            return ItemStack.EMPTY;
-        }
-        int toExtract = Math.min(amount, existing.getCount());
-        ItemStack result = existing.copyWithCount(toExtract);
-        if (!simulate) {
-            existing.shrink(toExtract);
-            machine.setChanged();
-        }
-        return result;
+    public long getCapacityAsLong(int index, ItemResource resource) {
+        return items.getCapacityAsLong(index, resource);
     }
 
     @Override
-    public int getSlotLimit(int slot) {
-        return machine.getMaxStackSize();
+    public boolean isValid(int index, ItemResource resource) {
+        return isInsertSlot(index) && machine.canPlaceItem(index, resource.toStack());
     }
 
     @Override
-    public boolean isItemValid(int slot, ItemStack stack) {
-        return isInsertSlot(slot) && machine.canPlaceItem(slot, stack);
+    public int insert(int index, ItemResource resource, int amount, TransactionContext transaction) {
+        if (!isInsertSlot(index)) {
+            return 0;
+        }
+        return items.insert(index, resource, amount, transaction);
+    }
+
+    @Override
+    public int extract(int index, ItemResource resource, int amount, TransactionContext transaction) {
+        if (!isExtractSlot(index)) {
+            return 0;
+        }
+        return items.extract(index, resource, amount, transaction);
     }
 
     private EFIoRole role() {

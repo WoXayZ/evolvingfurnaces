@@ -1,7 +1,7 @@
 # Evolving Furnaces
 
 Upgrade vanilla furnaces, blast furnaces, smokers and brewing stands through data-driven tiers.
-Minecraft **1.21.1** / **NeoForge 21.1.248**. Version **1.3**.
+Minecraft **26.1.2** / **NeoForge 26.1.2.114**. Version **1.3**.
 
 Vanilla machines stay vanilla. You upgrade one in place into a Copper machine (level 1), then keep going. Each tier can change processing time, batch size, the visual style, and the upgrade cost.
 
@@ -275,7 +275,7 @@ Missing file, empty list, or a parse error: that machine falls back to the shipp
 
 ## Recipe viewers and Jade
 
-JEI, EMI and REI are optional. There is one upgrade category per evolving machine (furnace, blast furnace, smoker, brewing stand), plus one category per energy module: **Generator Upgrades** (furnace catalysts, generator button icon) and **Electric Upgrades** (furnace / blast furnace / smoker catalysts, electric button icon). Each page shows install cost, generate or consume rate, and capacity. Hover the module button for its name. Step through tiers with the arrows (Shift jumps 10). In JEI, furnaces and upgrade items inside the category are real slots (bookmark, recipes, uses); there is one recipe per tier. Disabled machines and disabled energy modules are omitted.
+JEI and REI are optional. EMI has no published NeoForge 26.1 build, so that integration is not compiled. There is one upgrade category per evolving machine (furnace, blast furnace, smoker, brewing stand), plus one category per energy module: **Generator Upgrades** (furnace catalysts, generator button icon) and **Electric Upgrades** (furnace / blast furnace / smoker catalysts, electric button icon). Each page shows install cost, generate or consume rate, and capacity. Hover the module button for its name. Step through tiers with the arrows (Shift jumps 10). In JEI, furnaces and upgrade items inside the category are real slots (bookmark, recipes, uses); there is one recipe per tier. Disabled machines and disabled energy modules are omitted.
 
 Jade shows the current tier name, the active energy module, and stored FE.
 
@@ -285,11 +285,11 @@ Jade shows the current tier name, the active energy module, and stored FE.
 
 | Dependency | Version |
 | --- | --- |
-| Minecraft | 1.21.1 |
-| NeoForge | 21.1.248+ |
-| Java | 21 |
+| Minecraft | 26.1.2 |
+| NeoForge | 26.1.2.114+ |
+| Java | 25 |
 
-Optional: JEI, EMI, REI, Jade.
+Optional: JEI, REI, Jade.
 
 ---
 
@@ -301,7 +301,7 @@ Optional: JEI, EMI, REI, Jade.
 
 On Windows: `gradlew.bat jar`.
 
-The jar lands in `build/libs/evolvingfurnaces-neoforge-1.21.1-<version>.jar`.
+The jar lands in `build/libs/evolvingfurnaces-neoforge-26.1.2-<version>.jar`.
 
 ---
 

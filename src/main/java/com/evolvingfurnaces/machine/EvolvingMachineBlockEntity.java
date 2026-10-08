@@ -7,35 +7,42 @@ import com.evolvingfurnaces.tier.EFIoRole;
 import com.evolvingfurnaces.tier.EFMachineKind;
 import com.evolvingfurnaces.tier.EFMachineTier;
 import com.evolvingfurnaces.tier.EFTierManager;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
+import com.mojang.serialization.Codec;
+import it.unimi.dsi.fastutil.objects.Reference2IntOpenHashMap;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.NonNullList;
+import net.minecraft.core.component.DataComponentGetter;
 import net.minecraft.core.component.DataComponentMap;
 import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
+import net.minecraft.network.Connection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.Mth;
+import net.minecraft.util.ProblemReporter;
 import net.minecraft.world.ContainerHelper;
 import net.minecraft.world.WorldlyContainer;
 import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.player.StackedContents;
+import net.minecraft.world.entity.player.StackedItemContents;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ContainerData;
 import net.minecraft.world.inventory.RecipeCraftingHolder;
 import net.minecraft.world.inventory.StackedContentsCompatible;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.AbstractCookingRecipe;
+import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.SingleRecipeInput;
@@ -43,48 +50,16 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.AbstractFurnaceBlock;
 import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
 import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.storage.TagValueInput;
+import net.minecraft.world.level.storage.TagValueOutput;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.energy.IEnergyStorage;
-import net.neoforged.neoforge.items.IItemHandler;
-import org.jetbrains.annotations.Nullable;
-import it.unimi.dsi.fastutil.objects.Object2IntOpenHashMap;
-import java.util.ArrayList;
-import java.util.List;
-import net.minecraft.core.BlockPos;
-import net.minecraft.core.Direction;
-import net.minecraft.core.HolderLookup;
-import net.minecraft.core.NonNullList;
-import net.minecraft.core.component.DataComponentMap;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.Tag;
-import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ClientboundBlockEntityDataPacket;
-import net.minecraft.resources.ResourceLocation;
-import net.minecraft.server.level.ServerLevel;
-import net.minecraft.util.Mth;
-import net.minecraft.world.ContainerHelper;
-import net.minecraft.world.WorldlyContainer;
-import net.minecraft.world.entity.ExperienceOrb;
-import net.minecraft.world.entity.player.Inventory;
-import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.entity.player.StackedContents;
-import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ContainerData;
-import net.minecraft.world.inventory.RecipeCraftingHolder;
-import net.minecraft.world.inventory.StackedContentsCompatible;
-import net.minecraft.world.item.Item;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.crafting.AbstractCookingRecipe;
-import net.minecraft.world.item.crafting.RecipeHolder;
-import net.minecraft.world.item.crafting.RecipeManager;
-import net.minecraft.world.item.crafting.SingleRecipeInput;
-import net.minecraft.world.level.Level;
-import net.minecraft.world.level.block.AbstractFurnaceBlock;
-import net.minecraft.world.level.block.entity.BaseContainerBlockEntity;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.Vec3;
-import net.neoforged.neoforge.items.IItemHandler;
+import net.neoforged.neoforge.transfer.ResourceHandler;
+import net.neoforged.neoforge.transfer.energy.EnergyHandler;
+import net.neoforged.neoforge.transfer.energy.EnergyHandlerUtil;
+import net.neoforged.neoforge.transfer.item.ItemResource;
+import net.neoforged.neoforge.transfer.transaction.Transaction;
 import org.jetbrains.annotations.Nullable;
 
 public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
@@ -123,7 +98,8 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     private boolean convertingToVanilla;
     @Nullable
     private Item cycleInputItem;
-    private final Object2IntOpenHashMap<ResourceLocation> recipesUsed = new Object2IntOpenHashMap<>();
+    private static final Codec<Map<ResourceKey<Recipe<?>>, Integer>> RECIPES_USED_CODEC = Codec.unboundedMap(Recipe.KEY_CODEC, Codec.INT);
+    private final Reference2IntOpenHashMap<ResourceKey<Recipe<?>>> recipesUsed = new Reference2IntOpenHashMap<>();
     private final RecipeManager.CachedCheck<SingleRecipeInput, AbstractCookingRecipe> quickCheck;
 
     private final ContainerData dataAccess = new ContainerData() {
@@ -181,7 +157,7 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     }
 
     private static EFMachineKind inferKind(BlockState state) {
-        String path = state.getBlock().builtInRegistryHolder().key().location().getPath();
+        String path = state.getBlock().builtInRegistryHolder().key().identifier().getPath();
         if (path.contains("blast")) {
             return EFMachineKind.BLAST_FURNACE;
         }
@@ -267,7 +243,7 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         }
     }
 
-    public IItemHandler handler(@Nullable Direction side) {
+    public ResourceHandler<ItemResource> handler(@Nullable Direction side) {
         int index = side == null ? 6 : side.ordinal();
         EFMachineIoHandler handler = handlers[index];
         if (handler == null) {
@@ -278,7 +254,7 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     }
 
     @Nullable
-    public IEnergyStorage energyHandler(@Nullable Direction side) {
+    public EnergyHandler energyHandler(@Nullable Direction side) {
         if (!exposesEnergy(side)) {
             return null;
         }
@@ -398,23 +374,19 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
             if (io.get(direction) != EFIoRole.ENERGY || energy.stored() <= 0) {
                 continue;
             }
-            IEnergyStorage target = level.getCapability(
-                    net.neoforged.neoforge.capabilities.Capabilities.EnergyStorage.BLOCK,
+            EnergyHandler target = level.getCapability(
+                    net.neoforged.neoforge.capabilities.Capabilities.Energy.BLOCK,
                     worldPosition.relative(direction),
                     direction.getOpposite());
-            if (target == null || !target.canReceive()) {
+            if (target == null) {
                 continue;
             }
-            int offered = energy.extractEnergy(target.receiveEnergy(energy.stored(), true), false);
-            if (offered <= 0) {
-                continue;
-            }
-            int accepted = target.receiveEnergy(offered, false);
-            if (accepted < offered) {
-                energy.addInternal(offered - accepted);
-            }
-            if (accepted > 0) {
-                changed = true;
+            try (Transaction transaction = Transaction.openRoot()) {
+                int moved = EnergyHandlerUtil.move(energy, target, energy.stored(), transaction);
+                if (moved > 0) {
+                    transaction.commit();
+                    changed = true;
+                }
             }
         }
         return changed;
@@ -480,11 +452,11 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
             refreshTierStats();
             cookingTotalTime = cachedCookTime;
         }
-        RecipeHolder<AbstractCookingRecipe> recipe = quickCheck.getRecipeFor(new SingleRecipeInput(input), level).orElse(null);
+        RecipeHolder<AbstractCookingRecipe> recipe = findRecipe(level, input).orElse(null);
         if (recipe == null) {
             return false;
         }
-        ItemStack result = recipe.value().assemble(new SingleRecipeInput(input), level.registryAccess());
+        ItemStack result = recipe.value().assemble(new SingleRecipeInput(input));
         int batch = computeBatch(result);
         if (batch < 1) {
             return false;
@@ -512,11 +484,11 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
             refreshTierStats();
             cookingTotalTime = cachedCookTime;
         }
-        RecipeHolder<AbstractCookingRecipe> recipe = quickCheck.getRecipeFor(new SingleRecipeInput(input), level).orElse(null);
+        RecipeHolder<AbstractCookingRecipe> recipe = findRecipe(level, input).orElse(null);
         if (recipe == null) {
             return false;
         }
-        ItemStack result = recipe.value().assemble(new SingleRecipeInput(input), level.registryAccess());
+        ItemStack result = recipe.value().assemble(new SingleRecipeInput(input));
         int batch = computeBatch(result);
         if (batch < 1) {
             return false;
@@ -548,17 +520,18 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     }
 
     private void consumeFuel(ItemStack fuel, int count) {
-        if (fuel.hasCraftingRemainingItem()) {
-            setItem(SLOT_FUEL, fuel.getCraftingRemainingItem());
+        ItemStackTemplate remainder = fuel.getCraftingRemainder();
+        if (remainder != null) {
+            setItem(SLOT_FUEL, remainder.create());
             return;
         }
         ItemStack remaining = fuel.copy();
         remaining.shrink(Math.max(1, count));
-        setItem(SLOT_FUEL, remaining.isEmpty() ? fuel.getCraftingRemainingItem() : remaining);
+        setItem(SLOT_FUEL, remaining.isEmpty() ? ItemStack.EMPTY : remaining);
     }
 
     private int generatorFuelCount(ItemStack fuel) {
-        if (fuel.hasCraftingRemainingItem()) {
+        if (fuel.getCraftingRemainder() != null) {
             return 1;
         }
         return Math.min(Math.max(1, tier().batchSize()), fuel.getCount());
@@ -570,12 +543,12 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
             cycleInputItem = null;
             return false;
         }
-        RecipeHolder<AbstractCookingRecipe> recipe = quickCheck.getRecipeFor(new SingleRecipeInput(input), level).orElse(null);
+        RecipeHolder<AbstractCookingRecipe> recipe = findRecipe(level, input).orElse(null);
         if (recipe == null) {
             cycleInputItem = null;
             return false;
         }
-        ItemStack result = recipe.value().assemble(new SingleRecipeInput(input), level.registryAccess());
+        ItemStack result = recipe.value().assemble(new SingleRecipeInput(input));
         int batch = computeBatch(result);
         if (batch < 1) {
             cycleInputItem = null;
@@ -641,7 +614,10 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         if (stack.isEmpty()) {
             return 0;
         }
-        return stack.getBurnTime(kind.recipeType());
+        if (level == null) {
+            return 0;
+        }
+        return stack.getBurnTime(kind.recipeType(), level.fuelValues());
     }
 
     public boolean isLit() {
@@ -652,7 +628,7 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     }
 
     public void loadVanillaData(CompoundTag tag, ItemStack[] stacks, int newLevel, HolderLookup.Provider registries) {
-        loadAdditional(tag, registries);
+        loadAdditional(TagValueInput.create(ProblemReporter.DISCARDING, registries, tag));
         for (int i = 0; i < Math.min(stacks.length, items.size()); i++) {
             items.set(i, stacks[i]);
         }
@@ -668,13 +644,21 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         }
     }
 
+    @Override
+    public void preRemoveSideEffects(BlockPos pos, BlockState state) {
+        if (!convertingToVanilla && this.level instanceof ServerLevel serverLevel) {
+            awardRecipesAndPopExperience(serverLevel, Vec3.atCenterOf(pos));
+        }
+        super.preRemoveSideEffects(pos, state);
+    }
+
     public List<RecipeHolder<?>> awardRecipesAndPopExperience(ServerLevel level, Vec3 pos) {
         List<RecipeHolder<?>> awarded = new ArrayList<>();
-        for (var entry : recipesUsed.object2IntEntrySet()) {
-            level.getRecipeManager().byKey(entry.getKey()).ifPresent(holder -> {
+        for (var entry : recipesUsed.reference2IntEntrySet()) {
+            level.recipeAccess().byKey(entry.getKey()).ifPresent(holder -> {
                 awarded.add(holder);
                 if (holder.value() instanceof AbstractCookingRecipe cooking) {
-                    createExperience(level, pos, entry.getIntValue(), cooking.getExperience());
+                    createExperience(level, pos, entry.getIntValue(), cooking.experience());
                 }
             });
         }
@@ -730,7 +714,10 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         if (energyModule == EFEnergyModule.GENERATOR) {
             return false;
         }
-        return level != null && quickCheck.getRecipeFor(new SingleRecipeInput(stack), level).isPresent();
+        if (level == null || level.isClientSide()) {
+            return !stack.isEmpty();
+        }
+        return findRecipe(level, stack).isPresent();
     }
 
     @Override
@@ -761,7 +748,7 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     }
 
     @Override
-    public void fillStackedContents(StackedContents contents) {
+    public void fillStackedContents(StackedItemContents contents) {
         for (ItemStack stack : items) {
             contents.accountStack(stack);
         }
@@ -779,23 +766,21 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     }
 
     @Override
-    protected void loadAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.loadAdditional(tag, registries);
-        if (tag.contains("Items", Tag.TAG_LIST)) {
-            items = NonNullList.withSize(getContainerSize(), ItemStack.EMPTY);
-            ContainerHelper.loadAllItems(tag, items, registries);
-        }
-        litTime = tag.getInt("BurnTime");
-        cookingProgress = tag.getInt("CookTime");
-        cookingTotalTime = tag.getInt("CookTimeTotal");
-        litDuration = tag.getInt("LitDuration");
+    protected void loadAdditional(ValueInput input) {
+        super.loadAdditional(input);
+        items = NonNullList.withSize(getContainerSize(), ItemStack.EMPTY);
+        ContainerHelper.loadAllItems(input, items);
+        litTime = input.getIntOr("BurnTime", 0);
+        cookingProgress = input.getIntOr("CookTime", 0);
+        cookingTotalTime = input.getIntOr("CookTimeTotal", 0);
+        litDuration = input.getIntOr("LitDuration", 0);
         if (litDuration <= 0) {
             litDuration = getBurnDuration(items.get(SLOT_FUEL));
         }
-        machineLevel = Math.max(1, tag.getInt("MachineLevel"));
-        cooks = Math.max(0, tag.getInt("Cooks"));
-        energyModule = moduleOf(tag.getString("EnergyModule"));
-        energy.setStored(tag.getInt("Energy"));
+        machineLevel = Math.max(1, input.getIntOr("MachineLevel", 1));
+        cooks = Math.max(0, input.getIntOr("Cooks", 0));
+        energyModule = moduleOf(input.getStringOr("EnergyModule", ""));
+        energy.setStored(input.getIntOr("Energy", 0));
         refreshTierStats();
         energy.clampToCapacity();
         if (cookingTotalTime < 1) {
@@ -804,60 +789,61 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
         if (cookingProgress > 0 && !items.get(SLOT_INPUT).isEmpty()) {
             cycleInputItem = items.get(SLOT_INPUT).getItem();
         }
-        io.load(tag);
+        io.load(input);
         recipesUsed.clear();
-        CompoundTag used = tag.getCompound("RecipesUsed");
-        for (String key : used.getAllKeys()) {
-            recipesUsed.put(ResourceLocation.parse(key), used.getInt(key));
-        }
+        recipesUsed.putAll(input.read("RecipesUsed", RECIPES_USED_CODEC).orElse(Map.of()));
     }
 
     @Override
-    protected void saveAdditional(CompoundTag tag, HolderLookup.Provider registries) {
-        super.saveAdditional(tag, registries);
-        tag.putInt("BurnTime", litTime);
-        tag.putInt("CookTime", cookingProgress);
-        tag.putInt("CookTimeTotal", cookingTotalTime);
-        tag.putInt("LitDuration", litDuration);
-        tag.putInt("MachineLevel", machineLevel);
-        tag.putInt("Cooks", cooks);
-        tag.putString("EnergyModule", energyModule.getSerializedName());
-        tag.putInt("Energy", energy.stored());
-        ContainerHelper.saveAllItems(tag, items, registries);
-        io.save(tag);
-        CompoundTag used = new CompoundTag();
-        recipesUsed.forEach((id, count) -> used.putInt(id.toString(), count));
-        tag.put("RecipesUsed", used);
+    protected void saveAdditional(ValueOutput output) {
+        super.saveAdditional(output);
+        output.putInt("BurnTime", litTime);
+        output.putInt("CookTime", cookingProgress);
+        output.putInt("CookTimeTotal", cookingTotalTime);
+        output.putInt("LitDuration", litDuration);
+        output.putInt("MachineLevel", machineLevel);
+        output.putInt("Cooks", cooks);
+        output.putString("EnergyModule", energyModule.getSerializedName());
+        output.putInt("Energy", energy.stored());
+        ContainerHelper.saveAllItems(output, items);
+        io.save(output);
+        output.store("RecipesUsed", RECIPES_USED_CODEC, recipesUsed);
     }
 
     @Override
     public CompoundTag getUpdateTag(HolderLookup.Provider registries) {
-        CompoundTag tag = super.getUpdateTag(registries);
-        tag.putInt("MachineLevel", machineLevel);
-        tag.putInt("Cooks", cooks);
-        tag.putString("EnergyModule", energyModule.getSerializedName());
-        tag.putInt("Energy", energy.stored());
-        io.save(tag);
-        return tag;
+        TagValueOutput output = TagValueOutput.createWithContext(ProblemReporter.DISCARDING, registries);
+        output.putInt("MachineLevel", machineLevel);
+        output.putInt("Cooks", cooks);
+        output.putString("EnergyModule", energyModule.getSerializedName());
+        output.putInt("Energy", energy.stored());
+        io.save(output);
+        return output.buildResult();
     }
 
     @Override
-    public void handleUpdateTag(CompoundTag tag, HolderLookup.Provider registries) {
-        super.handleUpdateTag(tag, registries);
-        if (tag.contains("MachineLevel", Tag.TAG_INT)) {
-            machineLevel = Math.max(1, tag.getInt("MachineLevel"));
+    public void onDataPacket(Connection net, ValueInput input) {
+        handleUpdateTag(input);
+    }
+
+    @Override
+    public void handleUpdateTag(ValueInput input) {
+        if (input.getInt("MachineLevel").isPresent()) {
+            machineLevel = Math.max(1, input.getIntOr("MachineLevel", 1));
             refreshTierStats();
         }
-        if (tag.contains("Cooks", Tag.TAG_INT)) {
-            cooks = tag.getInt("Cooks");
+        if (input.getInt("Cooks").isPresent()) {
+            cooks = input.getIntOr("Cooks", 0);
         }
-        if (tag.contains("EnergyModule", Tag.TAG_STRING)) {
-            energyModule = moduleOf(tag.getString("EnergyModule"));
+        if (input.getString("EnergyModule").isPresent()) {
+            energyModule = moduleOf(input.getStringOr("EnergyModule", ""));
         }
-        if (tag.contains("Energy", Tag.TAG_INT)) {
-            energy.setStored(tag.getInt("Energy"));
+        if (input.getInt("Energy").isPresent()) {
+            energy.setStored(input.getIntOr("Energy", 0));
         }
-        io.load(tag);
+        if (!input.childrenListOrEmpty("Io").isEmpty()) {
+            io.load(input);
+        }
     }
 
     @Override
@@ -866,7 +852,7 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     }
 
     @Override
-    protected void applyImplicitComponents(DataComponentInput input) {
+    protected void applyImplicitComponents(DataComponentGetter input) {
         super.applyImplicitComponents(input);
         machineLevel = Math.max(1, input.getOrDefault(EFDataComponents.MACHINE_LEVEL.get(), 1));
         energyModule = input.getOrDefault(EFDataComponents.ENERGY_MODULE.get(), EFEnergyModule.NONE);
@@ -888,11 +874,18 @@ public class EvolvingMachineBlockEntity extends BaseContainerBlockEntity
     }
 
     @Override
-    public void removeComponentsFromTag(CompoundTag tag) {
-        super.removeComponentsFromTag(tag);
-        tag.remove("MachineLevel");
-        tag.remove("EnergyModule");
-        tag.remove("Energy");
+    public void removeComponentsFromTag(ValueOutput output) {
+        super.removeComponentsFromTag(output);
+        output.discard("MachineLevel");
+        output.discard("EnergyModule");
+        output.discard("Energy");
+    }
+
+    private Optional<RecipeHolder<AbstractCookingRecipe>> findRecipe(Level level, ItemStack stack) {
+        if (stack.isEmpty() || !(level instanceof ServerLevel serverLevel)) {
+            return Optional.empty();
+        }
+        return quickCheck.getRecipeFor(new SingleRecipeInput(stack), serverLevel);
     }
 
     private static int packLow(int value) {

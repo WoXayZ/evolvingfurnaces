@@ -12,7 +12,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.CustomData;
+import net.minecraft.world.item.component.TypedEntityData;
 import org.jetbrains.annotations.Nullable;
 
 public final class EFMachineTooltips {
@@ -144,17 +144,19 @@ public final class EFMachineTooltips {
     }
 
     private static int cooksOf(ItemStack stack) {
-        CustomData data = stack.get(DataComponents.BLOCK_ENTITY_DATA);
+        TypedEntityData<?> data = stack.get(DataComponents.BLOCK_ENTITY_DATA);
         if (data == null) {
             return 0;
         }
-        CompoundTag tag = data.copyTag();
-        return Math.max(0, tag.getInt("Cooks"));
+        CompoundTag tag = data.getUnsafe();
+        return Math.max(0, tag.getIntOr("Cooks", 0));
     }
 
     private static Component costLabel(EFCostIngredient cost) {
         if (cost.itemId().isPresent()) {
-            return Component.translatable(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(cost.itemId().get()).getDescriptionId());
+            return Component.translatable(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(cost.itemId().get())
+                    .map(holder -> holder.value().getDescriptionId())
+                    .orElse("item.minecraft.air"));
         }
         return Component.literal("#" + cost.tagId().map(Object::toString).orElse("tag"));
     }

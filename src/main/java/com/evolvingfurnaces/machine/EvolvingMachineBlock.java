@@ -21,7 +21,6 @@ import net.minecraft.world.level.block.entity.BlockEntity;
 import net.minecraft.world.level.block.entity.BlockEntityTicker;
 import net.minecraft.world.level.block.entity.BlockEntityType;
 import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 import org.jetbrains.annotations.Nullable;
 
@@ -61,11 +60,11 @@ public class EvolvingMachineBlock extends AbstractFurnaceBlock {
     @Nullable
     @Override
     public <T extends BlockEntity> BlockEntityTicker<T> getTicker(Level level, BlockState state, BlockEntityType<T> type) {
-        return level.isClientSide ? null : createTickerHelper(type, EFBlockEntities.MACHINE.get(), EvolvingMachineBlockEntity::serverTick);
+        return level.isClientSide() ? null : createTickerHelper(type, EFBlockEntities.MACHINE.get(), EvolvingMachineBlockEntity::serverTick);
     }
 
     @Override
-    public ItemStack getCloneItemStack(BlockState state, HitResult target, LevelReader level, BlockPos pos, Player player) {
+    public ItemStack getCloneItemStack(LevelReader level, BlockPos pos, BlockState state, boolean includeData, Player player) {
         ItemStack stack = new ItemStack(this);
         if (level.getBlockEntity(pos) instanceof EvolvingMachineBlockEntity machine) {
             stack.set(EFDataComponents.MACHINE_LEVEL.get(), machine.machineLevel());
@@ -77,23 +76,8 @@ public class EvolvingMachineBlock extends AbstractFurnaceBlock {
     }
 
     @Override
-    public ItemStack getCloneItemStack(LevelReader level, BlockPos pos, BlockState state) {
-        return getCloneItemStack(state, null, level, pos, null);
-    }
-
-    @Override
     protected RenderShape getRenderShape(BlockState state) {
         return RenderShape.MODEL;
-    }
-
-    @Override
-    protected void onRemove(BlockState state, Level level, BlockPos pos, BlockState newState, boolean movedByPiston) {
-        if (!state.is(newState.getBlock()) && level instanceof ServerLevel serverLevel
-                && level.getBlockEntity(pos) instanceof EvolvingMachineBlockEntity machine
-                && !machine.convertingToVanilla()) {
-            machine.awardRecipesAndPopExperience(serverLevel, Vec3.atCenterOf(pos));
-        }
-        super.onRemove(state, level, pos, newState, movedByPiston);
     }
 
     @Override

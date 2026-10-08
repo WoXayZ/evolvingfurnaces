@@ -6,16 +6,17 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import java.util.Optional;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.ItemStack;
 
-public record EFCostIngredient(Optional<ResourceLocation> itemId, Optional<ResourceLocation> tagId, int count) {
+public record EFCostIngredient(Optional<Identifier> itemId, Optional<Identifier> tagId, int count) {
 
     public static final Codec<EFCostIngredient> CODEC = RecordCodecBuilder.<EFCostIngredient>create(instance -> instance.group(
-            ResourceLocation.CODEC.optionalFieldOf("item").forGetter(EFCostIngredient::itemId),
-            ResourceLocation.CODEC.optionalFieldOf("tag").forGetter(EFCostIngredient::tagId),
+            Identifier.CODEC.optionalFieldOf("item").forGetter(EFCostIngredient::itemId),
+            Identifier.CODEC.optionalFieldOf("tag").forGetter(EFCostIngredient::tagId),
             Codec.INT.optionalFieldOf("count", 1).forGetter(EFCostIngredient::count)
     ).apply(instance, EFCostIngredient::new)).flatXmap(EFCostIngredient::validate, EFCostIngredient::validate);
 
@@ -32,7 +33,7 @@ public record EFCostIngredient(Optional<ResourceLocation> itemId, Optional<Resou
     }
 
     public static EFCostIngredient item(String id, int count) {
-        return new EFCostIngredient(Optional.of(ResourceLocation.parse(id)), Optional.empty(), count);
+        return new EFCostIngredient(Optional.of(Identifier.parse(id)), Optional.empty(), count);
     }
 
     public boolean matches(ItemStack stack) {
@@ -48,7 +49,7 @@ public record EFCostIngredient(Optional<ResourceLocation> itemId, Optional<Resou
 
     public ItemStack displayStack() {
         if (itemId.isPresent()) {
-            Item item = BuiltInRegistries.ITEM.get(itemId.get());
+            Item item = BuiltInRegistries.ITEM.get(itemId.get()).map(holder -> holder.value()).orElse(Items.AIR);
             return new ItemStack(item, Math.min(count, item.getDefaultMaxStackSize()));
         }
         return ItemStack.EMPTY;

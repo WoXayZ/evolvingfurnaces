@@ -19,42 +19,44 @@ import com.evolvingfurnaces.tier.EFUpgradeCost;
 import java.util.ArrayList;
 import java.util.List;
 import net.minecraft.ChatFormatting;
-import net.minecraft.client.gui.GuiGraphics;
+import java.util.Optional;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.screens.inventory.AbstractFurnaceScreen;
+import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
+import net.minecraft.client.gui.screens.recipebook.SearchRecipeBookCategory;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.client.gui.screens.recipebook.AbstractFurnaceRecipeBookComponent;
-import net.minecraft.client.gui.screens.recipebook.BlastingRecipeBookComponent;
-import net.minecraft.client.gui.screens.recipebook.SmeltingRecipeBookComponent;
-import net.minecraft.client.gui.screens.recipebook.SmokingRecipeBookComponent;
 import net.minecraft.core.Direction;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.crafting.RecipeBookCategories;
 import net.minecraft.world.level.block.AbstractFurnaceBlock;
-import net.neoforged.neoforge.network.PacketDistributor;
+import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachineMenu> {
 
-    private static final ResourceLocation TEXTURE = ResourceLocation.withDefaultNamespace("textures/gui/container/furnace.png");
-    private static final ResourceLocation LIT_PROGRESS = ResourceLocation.withDefaultNamespace("container/furnace/lit_progress");
-    private static final ResourceLocation BURN_PROGRESS = ResourceLocation.withDefaultNamespace("container/furnace/burn_progress");
-    private static final ResourceLocation IO_PANEL = EFConstants.id("textures/gui/io_panel.png");
-    private static final ResourceLocation INFO_PANEL = EFConstants.id("textures/gui/info_panel.png");
+    private static final Identifier TEXTURE = Identifier.withDefaultNamespace("textures/gui/container/furnace.png");
+    private static final Identifier LIT_PROGRESS = Identifier.withDefaultNamespace("container/furnace/lit_progress");
+    private static final Identifier BURN_PROGRESS = Identifier.withDefaultNamespace("container/furnace/burn_progress");
+    private static final Identifier IO_PANEL = EFConstants.id("textures/gui/io_panel.png");
+    private static final Identifier INFO_PANEL = EFConstants.id("textures/gui/info_panel.png");
 
-    private static final ResourceLocation IO = EFConstants.id("widget/io");
-    private static final ResourceLocation INFO = EFConstants.id("widget/info");
-    private static final ResourceLocation UPGRADE = EFConstants.id("widget/upgrade");
-    private static final ResourceLocation UPGRADE_READY = EFConstants.id("widget/upgrade_ready");
-    private static final ResourceLocation UPGRADE_MAX = EFConstants.id("widget/upgrade_max");
-    private static final ResourceLocation GENERATOR = EFConstants.id("widget/generator");
-    private static final ResourceLocation GENERATOR_READY = EFConstants.id("widget/generator_ready");
-    private static final ResourceLocation ELECTRIC = EFConstants.id("widget/electric");
-    private static final ResourceLocation ELECTRIC_READY = EFConstants.id("widget/electric_ready");
-    private static final ResourceLocation ENERGY_EMPTY = EFConstants.id("widget/energy_empty");
-    private static final ResourceLocation ENERGY_FULL = EFConstants.id("widget/energy_full");
+    private static final Identifier IO = EFConstants.id("widget/io");
+    private static final Identifier INFO = EFConstants.id("widget/info");
+    private static final Identifier UPGRADE = EFConstants.id("widget/upgrade");
+    private static final Identifier UPGRADE_READY = EFConstants.id("widget/upgrade_ready");
+    private static final Identifier UPGRADE_MAX = EFConstants.id("widget/upgrade_max");
+    private static final Identifier GENERATOR = EFConstants.id("widget/generator");
+    private static final Identifier GENERATOR_READY = EFConstants.id("widget/generator_ready");
+    private static final Identifier ELECTRIC = EFConstants.id("widget/electric");
+    private static final Identifier ELECTRIC_READY = EFConstants.id("widget/electric_ready");
+    private static final Identifier ENERGY_EMPTY = EFConstants.id("widget/energy_empty");
+    private static final Identifier ENERGY_FULL = EFConstants.id("widget/energy_full");
 
     static final int IO_W = 62;
     static final int IO_H = 67;
@@ -63,7 +65,7 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
     private static final int PANEL_TEX = 256;
     private static final int FACE = 8;
     private static final int FACE_GAP = 4;
-    private static final int TEXT = 0x404040;
+    private static final int TEXT = 0xFF404040;
     private static final int ENERGY_W = 18;
     private static final int ENERGY_H = 35;
     private static final int SLOT_INPUT_Y = 17;
@@ -75,7 +77,7 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
 
     private boolean infoOpen;
     private boolean ioOpen;
-    private boolean lastBookVisible;
+    private boolean bookVisible;
     private EFSpriteButton ioButton;
     private EFSpriteButton infoButton;
     private EFSpriteButton upgradeButton;
@@ -83,7 +85,7 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
     private EFSpriteButton electricButton;
 
     public EvolvingMachineScreen(EvolvingMachineMenu menu, Inventory inventory, Component title) {
-        super(menu, recipeBook(menu.kind()), inventory, title, TEXTURE, LIT_PROGRESS, BURN_PROGRESS);
+        super(menu, inventory, title, filterName(menu.kind()), TEXTURE, LIT_PROGRESS, BURN_PROGRESS, tabs(menu.kind()));
         this.infoOpen = rememberedInfoOpen;
         this.ioOpen = rememberedIoOpen;
         if (this.ioOpen) {
@@ -91,19 +93,35 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
         }
     }
 
-    private static AbstractFurnaceRecipeBookComponent recipeBook(EFMachineKind kind) {
+    private static Component filterName(EFMachineKind kind) {
         return switch (kind) {
-            case FURNACE -> new SmeltingRecipeBookComponent();
-            case BLAST_FURNACE -> new BlastingRecipeBookComponent();
-            case SMOKER -> new SmokingRecipeBookComponent();
-            case BREWING_STAND -> new SmeltingRecipeBookComponent();
+            case BLAST_FURNACE -> Component.translatable("gui.recipebook.toggleRecipes.blastable");
+            case SMOKER -> Component.translatable("gui.recipebook.toggleRecipes.smokable");
+            default -> Component.translatable("gui.recipebook.toggleRecipes.smeltable");
+        };
+    }
+
+    private static List<RecipeBookComponent.TabInfo> tabs(EFMachineKind kind) {
+        return switch (kind) {
+            case BLAST_FURNACE -> List.of(
+                    new RecipeBookComponent.TabInfo(SearchRecipeBookCategory.BLAST_FURNACE),
+                    new RecipeBookComponent.TabInfo(Items.REDSTONE_ORE, RecipeBookCategories.BLAST_FURNACE_BLOCKS),
+                    new RecipeBookComponent.TabInfo(Items.IRON_SHOVEL, Items.GOLDEN_LEGGINGS, RecipeBookCategories.BLAST_FURNACE_MISC));
+            case SMOKER -> List.of(
+                    new RecipeBookComponent.TabInfo(SearchRecipeBookCategory.SMOKER),
+                    new RecipeBookComponent.TabInfo(Items.PORKCHOP, RecipeBookCategories.SMOKER_FOOD));
+            default -> List.of(
+                    new RecipeBookComponent.TabInfo(SearchRecipeBookCategory.FURNACE),
+                    new RecipeBookComponent.TabInfo(Items.PORKCHOP, RecipeBookCategories.FURNACE_FOOD),
+                    new RecipeBookComponent.TabInfo(Items.STONE, RecipeBookCategories.FURNACE_BLOCKS),
+                    new RecipeBookComponent.TabInfo(Items.LAVA_BUCKET, Items.EMERALD, RecipeBookCategories.FURNACE_MISC));
         };
     }
 
     @Override
     public void init() {
         super.init();
-        lastBookVisible = recipeBookComponent.isVisible();
+        bookVisible = false;
         applyLayout();
         ioButton = addRenderableWidget(new EFSpriteButton(
                 ioButtonX(),
@@ -140,7 +158,7 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
                 true,
                 button -> {
                     if (!isMaxLevel()) {
-                        PacketDistributor.sendToServer(new EFUpgradeMachinePayload(menu.blockPos()));
+                        ClientPacketDistributor.sendToServer(new EFUpgradeMachinePayload(menu.blockPos()));
                     }
                 },
                 Component.translatable("evolvingfurnaces.gui.upgrade")));
@@ -163,13 +181,17 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
     }
 
     @Override
-    public void containerTick() {
-        super.containerTick();
-        if (recipeBookComponent.isVisible() && !lastBookVisible && ioOpen) {
+    protected void onRecipeBookButtonClick() {
+        bookVisible = !bookVisible;
+        if (bookVisible && ioOpen) {
             ioOpen = false;
             rememberPanels();
         }
-        lastBookVisible = recipeBookComponent.isVisible();
+    }
+
+    @Override
+    public void containerTick() {
+        super.containerTick();
         applyLayout();
         if (upgradeButton != null) {
             upgradeButton.setTooltip(net.minecraft.client.gui.components.Tooltip.create(upgradeNarration()));
@@ -183,9 +205,9 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
     }
 
     @Override
-    public void render(GuiGraphics graphics, int mouseX, int mouseY, float partialTick) {
+    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         applyLayout();
-        super.render(graphics, mouseX, mouseY, partialTick);
+        super.extractRenderState(graphics, mouseX, mouseY, partialTick);
         if (infoOpen) {
             renderInfo(graphics, mouseX, mouseY);
         }
@@ -193,73 +215,77 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
             renderIo(graphics, mouseX, mouseY);
         }
         if (menu.energyModule().installed() && inEnergyBar(mouseX, mouseY)) {
-            graphics.renderComponentTooltip(
+            graphics.setTooltipForNextFrame(
                     font,
                     List.of(Component.translatable(
                             "evolvingfurnaces.gui.energy",
                             menu.energyStored(),
                             menu.energyCapacity())),
+                    Optional.empty(),
                     mouseX,
                     mouseY);
         }
-        renderTooltip(graphics, mouseX, mouseY);
     }
 
     @Override
-    protected void renderBg(GuiGraphics graphics, float partialTick, int mouseX, int mouseY) {
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partialTick) {
         EFEnergyModule module = menu.energyModule();
         if (!module.installed()) {
-            super.renderBg(graphics, partialTick, mouseX, mouseY);
+            super.extractBackground(graphics, mouseX, mouseY, partialTick);
             return;
         }
+        this.extractTransparentBackground(graphics);
+        this.minecraft.gui.extractDeferredSubtitles();
         int i = leftPos;
         int j = topPos;
-        graphics.blit(TEXTURE, i, j, 0, 0, imageWidth, imageHeight);
+        graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, TEXTURE, i, j, 0.0F, 0.0F, imageWidth, imageHeight, 256, 256);
         coverUnusedSlots(graphics);
         if (module == EFEnergyModule.GENERATOR) {
             if (menu.isLit()) {
                 int flame = Mth.ceil(menu.getLitProgress() * 13.0F) + 1;
-                graphics.blitSprite(LIT_PROGRESS, 14, 14, 0, 14 - flame, i + 56, j + 36 + 14 - flame, 14, flame);
+                graphics.blitSprite(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, LIT_PROGRESS, 14, 14, 0, 14 - flame, i + 56, j + 36 + 14 - flame, 14, flame);
             }
         } else {
             int cook = Mth.ceil(menu.getBurnProgress() * 24.0F);
-            graphics.blitSprite(BURN_PROGRESS, 24, 16, 0, 0, i + 79, j + 34, cook, 16);
+            graphics.blitSprite(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, BURN_PROGRESS, 24, 16, 0, 0, i + 79, j + 34, cook, 16);
         }
         blitEnergyBar(graphics, energyBarX(), energyBarY(), menu.energyStored(), menu.energyCapacity());
     }
 
     @Override
-    public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button == 0 && ioOpen) {
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        double mouseX = event.x();
+        double mouseY = event.y();
+        if (event.button() == 0 && ioOpen) {
             Direction face = ioFaceAt(mouseX, mouseY);
             if (face != null) {
-                PacketDistributor.sendToServer(new EFConfigureIoPayload(menu.blockPos(), face));
+                ClientPacketDistributor.sendToServer(new EFConfigureIoPayload(menu.blockPos(), face));
                 return true;
             }
             if (inIoPanel(mouseX, mouseY)) {
                 return true;
             }
         }
-        if (button == 0 && infoOpen && inInfoPanel(mouseX, mouseY)) {
+        if (event.button() == 0 && infoOpen && inInfoPanel(mouseX, mouseY)) {
             return true;
         }
-        return super.mouseClicked(mouseX, mouseY, button);
+        return super.mouseClicked(event, doubleClick);
     }
 
     @Override
-    protected boolean hasClickedOutside(double mouseX, double mouseY, int guiLeft, int guiTop, int mouseButton) {
+    protected boolean hasClickedOutside(double mouseX, double mouseY, int guiLeft, int guiTop) {
         if (inExtraUi(mouseX, mouseY)) {
             return false;
         }
-        return super.hasClickedOutside(mouseX, mouseY, guiLeft, guiTop, mouseButton);
+        return super.hasClickedOutside(mouseX, mouseY, guiLeft, guiTop);
     }
 
-    private void renderInfo(GuiGraphics graphics, int mouseX, int mouseY) {
+    private void renderInfo(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         int x = infoPanelX();
         int y = infoPanelY();
-        graphics.blit(INFO_PANEL, x, y, 0.0F, 0.0F, INFO_W, INFO_H, PANEL_TEX, PANEL_TEX);
+        graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, INFO_PANEL, x, y, 0.0F, 0.0F, INFO_W, INFO_H, PANEL_TEX, PANEL_TEX);
         Component title = Component.translatable("evolvingfurnaces.gui.info");
-        graphics.drawString(font, title, x + (INFO_W - font.width(title)) / 2, y + 5, TEXT, false);
+        graphics.text(font, title, x + (INFO_W - font.width(title)) / 2, y + 5, TEXT, false);
         List<Component> lines = new ArrayList<>();
         EvolvingMachineBlockEntity machine = machine();
         if (machine != null) {
@@ -277,11 +303,11 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
             if (line.getStyle().getColor() != null
                     && ChatFormatting.GOLD.getColor() != null
                     && line.getStyle().getColor().getValue() == ChatFormatting.GOLD.getColor()) {
-                color = 0xB36B00;
+                color = 0xFFB36B00;
             } else {
                 color = TEXT;
             }
-            graphics.drawString(font, line.copy().withStyle(style -> style.withColor(color)), x + 8, lineY, color, false);
+            graphics.text(font, line.copy().withStyle(style -> style.withColor(color)), x + 8, lineY, color, false);
             lineY += 10;
         }
         if (machine != null) {
@@ -290,16 +316,17 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
             blitCooksBar(graphics, barX, barY, machine);
             if (inCooksBar(barX, barY, mouseX, mouseY)) {
                 int required = EFMachineTooltips.progressGoal(menu.kind(), machine.machineLevel());
-                graphics.renderComponentTooltip(
+                graphics.setTooltipForNextFrame(
                         font,
                         List.of(Component.translatable("evolvingfurnaces.gui.cooks_short", machine.cooks(), required)),
+                        Optional.empty(),
                         mouseX,
                         mouseY);
             }
         }
     }
 
-    private void blitCooksBar(GuiGraphics graphics, int x, int y, EvolvingMachineBlockEntity machine) {
+    private void blitCooksBar(GuiGraphicsExtractor graphics, int x, int y, EvolvingMachineBlockEntity machine) {
         boolean max = EFTierManager.nextClient(menu.kind(), machine.machineLevel()).isEmpty();
         int barW = INFO_W - 16;
         graphics.fill(x, y, x + barW, y + 5, 0xFF8B8B8B);
@@ -314,12 +341,12 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
         return mouseX >= x && mouseX < x + INFO_W - 16 && mouseY >= y && mouseY < y + 5;
     }
 
-    private void renderIo(GuiGraphics graphics, int mouseX, int mouseY) {
+    private void renderIo(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         int x = ioPanelX();
         int y = ioPanelY();
-        graphics.blit(IO_PANEL, x, y, 0.0F, 0.0F, IO_W, IO_H, PANEL_TEX, PANEL_TEX);
+        graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, IO_PANEL, x, y, 0.0F, 0.0F, IO_W, IO_H, PANEL_TEX, PANEL_TEX);
         Component title = Component.translatable("evolvingfurnaces.gui.io_config");
-        graphics.drawString(font, title, x + (IO_W - font.width(title)) / 2, y + 5, TEXT, false);
+        graphics.text(font, title, x + (IO_W - font.width(title)) / 2, y + 5, TEXT, false);
         EvolvingMachineBlockEntity machine = machine();
         if (machine == null) {
             return;
@@ -328,30 +355,32 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
         IoFace hoveredCell = null;
         for (IoFace cell : ioFaces()) {
             boolean hover = cell.world == hovered;
-            graphics.blitSprite(ioSprite(machine.io().get(cell.world), machine.energyModule(), hover), cell.x, cell.y, FACE, FACE);
+            graphics.blitSprite(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, ioSprite(machine.io().get(cell.world), machine.energyModule(), hover), cell.x, cell.y, FACE, FACE);
             if (hover) {
                 hoveredCell = cell;
             }
         }
         if (hovered != null && hoveredCell != null) {
-            graphics.renderComponentTooltip(
+            graphics.setTooltipForNextFrame(
                     font,
                     List.of(
                             Component.translatable("evolvingfurnaces.gui.io.rel." + hoveredCell.label),
                             ioRoleLabel(machine.io().get(hovered), machine.energyModule())
                     ),
+                    Optional.empty(),
                     (int) mouseX,
                     (int) mouseY);
         }
     }
 
     private void applyLayout() {
-        if (recipeBookComponent.isVisible() && ioOpen) {
-            ioOpen = false;
-            rememberPanels();
+        boolean bookOpen = bookVisible && width >= 379;
+        if (bookOpen) {
+            leftPos = 177 + (width - imageWidth - 200) / 2;
+        } else {
+            leftPos = (width - imageWidth) / 2;
         }
-        leftPos = recipeBookComponent.updateScreenPosition(width, imageWidth);
-        if (!recipeBookComponent.isVisible()) {
+        if (!bookVisible) {
             if (ioOpen) {
                 leftPos += IO_W / 2;
             } else if (infoOpen) {
@@ -385,9 +414,14 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
     }
 
     private void hideRecipeBook() {
-        if (recipeBookComponent.isVisible()) {
-            recipeBookComponent.toggleVisibility();
-            lastBookVisible = false;
+        if (!bookVisible) {
+            return;
+        }
+        for (var child : children()) {
+            if (child instanceof ImageButton image && image.getWidth() == 20 && image.getHeight() == 18) {
+                image.onPress(null);
+                return;
+            }
         }
     }
 
@@ -499,7 +533,7 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
         return null;
     }
 
-    private static ResourceLocation ioSprite(EFIoRole role, EFEnergyModule module, boolean hover) {
+    private static Identifier ioSprite(EFIoRole role, EFEnergyModule module, boolean hover) {
         String name = ioSpriteKey(role, module);
         String path = "widget/io_" + name;
         if (hover) {
@@ -535,7 +569,7 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
         return null;
     }
 
-    private ResourceLocation upgradeIcon() {
+    private Identifier upgradeIcon() {
         if (isMaxLevel()) {
             return UPGRADE_MAX;
         }
@@ -565,20 +599,20 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
     }
 
     private void tryInstall(EFEnergyModule module) {
-        boolean shift = hasShiftDown();
+        boolean shift = minecraft != null && minecraft.hasShiftDown();
         if (menu.energyModule() == module) {
             if (shift) {
-                PacketDistributor.sendToServer(new EFInstallModulePayload(menu.blockPos(), EFEnergyModule.NONE, true));
+                ClientPacketDistributor.sendToServer(new EFInstallModulePayload(menu.blockPos(), EFEnergyModule.NONE, true));
             }
             return;
         }
         if (menu.energyModule().installed() && !shift) {
             return;
         }
-        PacketDistributor.sendToServer(new EFInstallModulePayload(menu.blockPos(), module, shift));
+        ClientPacketDistributor.sendToServer(new EFInstallModulePayload(menu.blockPos(), module, shift));
     }
 
-    private ResourceLocation moduleIcon(EFEnergyModule module) {
+    private Identifier moduleIcon(EFEnergyModule module) {
         boolean ready = canInstall(module);
         if (module == EFEnergyModule.GENERATOR) {
             return ready ? GENERATOR_READY : GENERATOR;
@@ -622,26 +656,28 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
 
     private static Component costLabel(EFCostIngredient cost) {
         if (cost.itemId().isPresent()) {
-            return Component.translatable(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(cost.itemId().get()).getDescriptionId());
+            return Component.translatable(net.minecraft.core.registries.BuiltInRegistries.ITEM.get(cost.itemId().get())
+                    .map(holder -> holder.value().getDescriptionId())
+                    .orElse("item.minecraft.air"));
         }
         return Component.literal("#" + cost.tagId().map(Object::toString).orElse("tag"));
     }
 
-    private void blitEnergyBar(GuiGraphics graphics, int x, int y, int stored, int capacity) {
-        graphics.blitSprite(ENERGY_EMPTY, x, y, ENERGY_W, ENERGY_H);
+    private void blitEnergyBar(GuiGraphicsExtractor graphics, int x, int y, int stored, int capacity) {
+        graphics.blitSprite(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, ENERGY_EMPTY, x, y, ENERGY_W, ENERGY_H);
         if (stored <= 0 || capacity <= 0) {
             return;
         }
         int filled = Mth.clamp(stored * ENERGY_H / capacity, stored > 0 ? 1 : 0, ENERGY_H);
-        graphics.blitSprite(ENERGY_FULL, ENERGY_W, ENERGY_H, 0, ENERGY_H - filled, x, y + ENERGY_H - filled, ENERGY_W, filled);
+        graphics.blitSprite(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, ENERGY_FULL, ENERGY_W, ENERGY_H, 0, ENERGY_H - filled, x, y + ENERGY_H - filled, ENERGY_W, filled);
     }
 
     @Override
-    protected void renderSlot(GuiGraphics graphics, Slot slot) {
+    protected void extractSlot(GuiGraphicsExtractor graphics, Slot slot, int mouseX, int mouseY) {
         if (slotCovered(slot) && slot.getItem().isEmpty()) {
             return;
         }
-        super.renderSlot(graphics, slot);
+        super.extractSlot(graphics, slot, mouseX, mouseY);
     }
 
     @Override
@@ -688,7 +724,7 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
         return mouseX >= x && mouseX < x + ENERGY_W && mouseY >= y && mouseY < y + ENERGY_H;
     }
 
-    private void coverUnusedSlots(GuiGraphics graphics) {
+    private void coverUnusedSlots(GuiGraphicsExtractor graphics) {
         switch (menu.energyModule()) {
             case GENERATOR -> {
                 coverWithAdjacent(graphics, 55, 16, 18, 18);
@@ -700,12 +736,12 @@ public class EvolvingMachineScreen extends AbstractFurnaceScreen<EvolvingMachine
         }
     }
 
-    private void coverWithAdjacent(GuiGraphics graphics, int localX, int localY, int width, int height) {
+    private void coverWithAdjacent(GuiGraphicsExtractor graphics, int localX, int localY, int width, int height) {
         int srcU = localX > 0 ? localX - 1 : localX + width;
         int x = leftPos + localX;
         int y = topPos + localY;
         for (int dx = 0; dx < width; dx++) {
-            graphics.blit(TEXTURE, x + dx, y, srcU, localY, 1, height);
+            graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, TEXTURE, x + dx, y, srcU, localY, 1, height, 256, 256);
         }
     }
 

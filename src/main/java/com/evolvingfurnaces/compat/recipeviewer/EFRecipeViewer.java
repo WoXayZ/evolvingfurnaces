@@ -16,12 +16,12 @@ import java.util.List;
 import java.util.Map;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
-import net.minecraft.client.renderer.RenderType;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Nullable;
@@ -38,10 +38,10 @@ public final class EFRecipeViewer {
     public static final int MODULE_ITEMS_X = 28;
     public static final int MACHINE_X = 132;
 
-    private static final ResourceLocation LEFT = EFConstants.id("widget/page_left");
-    private static final ResourceLocation RIGHT = EFConstants.id("widget/page_right");
-    private static final ResourceLocation GENERATOR = EFConstants.id("widget/generator");
-    private static final ResourceLocation ELECTRIC = EFConstants.id("widget/electric");
+    private static final Identifier LEFT = EFConstants.id("widget/page_left");
+    private static final Identifier RIGHT = EFConstants.id("widget/page_right");
+    private static final Identifier GENERATOR = EFConstants.id("widget/generator");
+    private static final Identifier ELECTRIC = EFConstants.id("widget/electric");
 
     private static final Map<EFMachineKind, Integer> INDEX = new EnumMap<>(EFMachineKind.class);
 
@@ -64,19 +64,19 @@ public final class EFRecipeViewer {
         return Component.translatable("evolvingfurnaces.recipe_viewer.title.electric");
     }
 
-    public static ResourceLocation categoryId(EFMachineKind kind) {
+    public static Identifier categoryId(EFMachineKind kind) {
         return EFConstants.id(kind.id() + "_upgrades");
     }
 
-    public static ResourceLocation generatorCategoryId() {
+    public static Identifier generatorCategoryId() {
         return EFConstants.id("generator_upgrades");
     }
 
-    public static ResourceLocation electricCategoryId() {
+    public static Identifier electricCategoryId() {
         return EFConstants.id("electric_upgrades");
     }
 
-    public static ResourceLocation moduleCategoryId(EFEnergyModule module) {
+    public static Identifier moduleCategoryId(EFEnergyModule module) {
         return module == EFEnergyModule.ELECTRIC ? electricCategoryId() : generatorCategoryId();
     }
 
@@ -100,8 +100,8 @@ public final class EFRecipeViewer {
         return false;
     }
 
-    public static void blitModuleIcon(GuiGraphics graphics, int x, int y, EFEnergyModule module) {
-        ResourceLocation icon = module == EFEnergyModule.ELECTRIC ? ELECTRIC : GENERATOR;
+    public static void blitModuleIcon(GuiGraphicsExtractor graphics, int x, int y, EFEnergyModule module) {
+        Identifier icon = module == EFEnergyModule.ELECTRIC ? ELECTRIC : GENERATOR;
         EFSpriteButton.blit(graphics, x, y, icon, false, false, false);
     }
 
@@ -132,6 +132,16 @@ public final class EFRecipeViewer {
             return ItemStack.EMPTY;
         }
         return EvolvingMachineItem.withLevel(EFItems.item(kind), tier.level());
+    }
+
+    public static void focusLevel(EFMachineKind kind, int level) {
+        List<EFMachineTier> levels = EFTierManager.listClient(kind).levels();
+        for (int i = 0; i < levels.size(); i++) {
+            if (levels.get(i).level() == level) {
+                INDEX.put(kind, i);
+                return;
+            }
+        }
     }
 
     public static int indexOf(EFMachineKind kind, EFMachineTier tier) {
@@ -201,20 +211,20 @@ public final class EFRecipeViewer {
         if (direction > 0 && currentIndex(kind) >= levels.size() - 1) {
             return true;
         }
-        cycle(kind, direction, Screen.hasShiftDown());
+        cycle(kind, direction, Minecraft.getInstance().hasShiftDown());
         return true;
     }
 
-    public static void draw(GuiGraphics graphics, Font font, EFMachineKind kind) {
+    public static void draw(GuiGraphicsExtractor graphics, Font font, EFMachineKind kind) {
         draw(graphics, font, kind, -1, -1);
     }
 
-    public static void draw(GuiGraphics graphics, Font font, EFMachineKind kind, double mouseX, double mouseY) {
+    public static void draw(GuiGraphicsExtractor graphics, Font font, EFMachineKind kind, double mouseX, double mouseY) {
         draw(graphics, font, kind, current(kind), mouseX, mouseY, true);
     }
 
     public static void draw(
-            GuiGraphics graphics,
+            GuiGraphicsExtractor graphics,
             Font font,
             EFMachineKind kind,
             @Nullable EFMachineTier tier,
@@ -226,23 +236,23 @@ public final class EFRecipeViewer {
             return;
         }
         drawNav(graphics, font, kind, tier, mouseX, mouseY);
-        graphics.drawString(font, tier.displayName().toComponent(), 8, 28, 0x404040, false);
-        graphics.drawString(font, Component.translatable(kind.timeLangKey(), tier.cookTime(), tier.cookTime() / 20.0), 8, 42, 0x404040, false);
-        graphics.drawString(font, Component.translatable(kind.batchLangKey(), tier.batchSize()), 8, 54, 0x404040, false);
-        graphics.drawString(font, Component.translatable(kind.progressLangKey(), 0, tier.requiredCooks()), 8, 66, 0x404040, false);
-        graphics.drawString(font, Component.translatable("evolvingfurnaces.gui.xp_cost", tier.upgradeCost().experienceLevels()), 8, 78, 0x404040, false);
+        graphics.text(font, tier.displayName().toComponent(), 8, 28, 0xFF404040, false);
+        graphics.text(font, Component.translatable(kind.timeLangKey(), tier.cookTime(), tier.cookTime() / 20.0), 8, 42, 0xFF404040, false);
+        graphics.text(font, Component.translatable(kind.batchLangKey(), tier.batchSize()), 8, 54, 0xFF404040, false);
+        graphics.text(font, Component.translatable(kind.progressLangKey(), 0, tier.requiredCooks()), 8, 66, 0xFF404040, false);
+        graphics.text(font, Component.translatable("evolvingfurnaces.gui.xp_cost", tier.upgradeCost().experienceLevels()), 8, 78, 0xFF404040, false);
         if (renderItems) {
             blitCosts(graphics, font, tier.upgradeCost().items(), COST_X, COST_Y, mouseX, mouseY);
             blitItem(graphics, font, machineStack(kind, tier), MACHINE_X, COST_Y, mouseX, mouseY);
         }
     }
 
-    public static void drawModule(GuiGraphics graphics, Font font, EFEnergyModule module, double mouseX, double mouseY) {
+    public static void drawModule(GuiGraphicsExtractor graphics, Font font, EFEnergyModule module, double mouseX, double mouseY) {
         drawModule(graphics, font, module, current(EFMachineKind.FURNACE), mouseX, mouseY, true);
     }
 
     public static void drawModule(
-            GuiGraphics graphics,
+            GuiGraphicsExtractor graphics,
             Font font,
             EFEnergyModule module,
             @Nullable EFMachineTier tier,
@@ -255,30 +265,30 @@ public final class EFRecipeViewer {
             return;
         }
         drawNav(graphics, font, kind, tier, mouseX, mouseY);
-        graphics.drawString(font, tier.displayName().toComponent(), 8, 28, 0x404040, false);
+        graphics.text(font, tier.displayName().toComponent(), 8, 28, 0xFF404040, false);
         if (module == EFEnergyModule.GENERATOR) {
-            graphics.drawString(
+            graphics.text(
                     font,
                     Component.translatable("evolvingfurnaces.gui.energy_generate_short", tier.generatorOutput()),
                     8,
                     42,
-                    0x404040,
+                    0xFF404040,
                     false);
         } else {
-            graphics.drawString(
+            graphics.text(
                     font,
                     Component.translatable("evolvingfurnaces.gui.energy_consume_short", tier.energyConsume()),
                     8,
                     42,
-                    0x404040,
+                    0xFF404040,
                     false);
         }
-        graphics.drawString(
+        graphics.text(
                 font,
                 Component.translatable("evolvingfurnaces.gui.energy_capacity", tier.energyCapacity()),
                 8,
                 54,
-                0x404040,
+                0xFF404040,
                 false);
         var list = EFTierManager.listClient(kind);
         EFUpgradeCost cost = module == EFEnergyModule.GENERATOR ? list.generatorCost() : list.electricCost();
@@ -289,7 +299,7 @@ public final class EFRecipeViewer {
     }
 
     private static void drawNav(
-            GuiGraphics graphics,
+            GuiGraphicsExtractor graphics,
             Font font,
             EFMachineKind kind,
             EFMachineTier tier,
@@ -305,11 +315,11 @@ public final class EFRecipeViewer {
         EFSpriteButton.blit(graphics, 8, 6, LEFT, leftHover, !canLeft, false);
         EFSpriteButton.blit(graphics, 128, 6, RIGHT, rightHover, !canRight, false);
         Component level = Component.translatable("evolvingfurnaces.recipe_viewer.level", tier.level());
-        graphics.drawString(font, level, 80 - font.width(level) / 2, 10, 0x404040, false);
+        graphics.text(font, level, 80 - font.width(level) / 2, 10, 0xFF404040, false);
     }
 
     private static void blitModuleRow(
-            GuiGraphics graphics,
+            GuiGraphicsExtractor graphics,
             Font font,
             EFEnergyModule module,
             EFUpgradeCost cost,
@@ -318,18 +328,18 @@ public final class EFRecipeViewer {
             double mouseY,
             boolean renderItems
     ) {
-        ResourceLocation icon = module == EFEnergyModule.GENERATOR ? GENERATOR : ELECTRIC;
+        Identifier icon = module == EFEnergyModule.GENERATOR ? GENERATOR : ELECTRIC;
         boolean hover = inSlot(mouseX, mouseY, COST_X, y);
         EFSpriteButton.blit(graphics, COST_X, y, icon, hover, false, false);
         if (renderItems) {
             blitCosts(graphics, font, cost.items(), MODULE_ITEMS_X, y, mouseX, mouseY);
         }
-        graphics.drawString(
+        graphics.text(
                 font,
                 Component.translatable("evolvingfurnaces.gui.xp_short", cost.experienceLevels()),
                 90,
                 y + 4,
-                0x404040,
+                0xFF404040,
                 false);
     }
 
@@ -385,7 +395,7 @@ public final class EFRecipeViewer {
     }
 
     private static void blitCosts(
-            GuiGraphics graphics,
+            GuiGraphicsExtractor graphics,
             Font font,
             List<EFCostIngredient> costs,
             int x,
@@ -429,14 +439,14 @@ public final class EFRecipeViewer {
         return mouseX >= x && mouseX < x + SLOT && mouseY >= y && mouseY < y + SLOT;
     }
 
-    private static void blitItem(GuiGraphics graphics, Font font, ItemStack stack, int x, int y, double mouseX, double mouseY) {
+    private static void blitItem(GuiGraphicsExtractor graphics, Font font, ItemStack stack, int x, int y, double mouseX, double mouseY) {
         if (stack.isEmpty()) {
             return;
         }
-        graphics.renderItem(stack, x, y);
-        graphics.renderItemDecorations(font, stack, x, y);
+        graphics.item(stack, x, y);
+        graphics.itemDecorations(font, stack, x, y);
         if (inSlot(mouseX, mouseY, x, y)) {
-            graphics.fillGradient(RenderType.guiOverlay(), x, y, x + SLOT, y + SLOT, 0x80FFFFFF, 0x80FFFFFF, 0);
+            graphics.fillGradient(x, y, x + SLOT, y + SLOT, 0x80FFFFFF, 0x80FFFFFF);
         }
     }
 }

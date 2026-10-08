@@ -1,5 +1,6 @@
 package com.evolvingfurnaces.compat.recipeviewer.rei;
 
+import com.mojang.serialization.MapCodec;
 import com.evolvingfurnaces.EFConstants;
 import com.evolvingfurnaces.EFConfig;
 import com.evolvingfurnaces.client.gui.EFVanillaInfoOverlay;
@@ -15,9 +16,11 @@ import com.evolvingfurnaces.tier.EFTierManager;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Optional;
 import me.shedaniel.math.Point;
 import me.shedaniel.math.Rectangle;
 import me.shedaniel.rei.api.client.gui.Renderer;
+import me.shedaniel.rei.api.client.gui.compat.GuiGraphics;
 import me.shedaniel.rei.api.client.gui.widgets.Tooltip;
 import me.shedaniel.rei.api.client.gui.widgets.Widget;
 import me.shedaniel.rei.api.client.gui.widgets.WidgetWithBounds;
@@ -29,11 +32,14 @@ import me.shedaniel.rei.api.client.registry.display.DisplayRegistry;
 import me.shedaniel.rei.api.client.registry.screen.ExclusionZones;
 import me.shedaniel.rei.api.common.category.CategoryIdentifier;
 import me.shedaniel.rei.api.common.display.Display;
+import me.shedaniel.rei.api.common.display.DisplaySerializer;
 import me.shedaniel.rei.api.common.entry.EntryIngredient;
 import me.shedaniel.rei.api.common.util.EntryStacks;
 import me.shedaniel.rei.forge.REIPluginClient;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.network.codec.StreamCodec;
+import org.joml.Matrix3x2fStack;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.BlastFurnaceScreen;
@@ -134,6 +140,22 @@ public final class EFReiClientPlugin implements REIClientPlugin {
     }
 
     public record EFRecipeViewerReiDisplay(EFMachineKind kind, EFEnergyModule module) implements Display {
+        private static final EFRecipeViewerReiDisplay EMPTY = new EFRecipeViewerReiDisplay(EFMachineKind.FURNACE, EFEnergyModule.NONE);
+        private static final DisplaySerializer<EFRecipeViewerReiDisplay> SERIALIZER = DisplaySerializer.of(
+                MapCodec.unit(EMPTY),
+                StreamCodec.unit(EMPTY),
+                false);
+
+        @Override
+        public DisplaySerializer<? extends Display> getSerializer() {
+            return SERIALIZER;
+        }
+
+        @Override
+        public Optional<net.minecraft.resources.Identifier> getDisplayLocation() {
+            return Optional.empty();
+        }
+
         @Override
         public List<EntryIngredient> getInputEntries() {
             return List.of();
@@ -241,14 +263,15 @@ public final class EFReiClientPlugin implements REIClientPlugin {
 
         @Override
         public void render(GuiGraphics graphics, int mouseX, int mouseY, float delta) {
-            graphics.pose().pushPose();
-            graphics.pose().translate(bounds.x, bounds.y, 0);
+            Matrix3x2fStack pose = graphics.pose();
+            pose.pushMatrix();
+            pose.translate(bounds.x, bounds.y);
             if (module.installed()) {
                 EFRecipeViewer.drawModule(graphics, Minecraft.getInstance().font, module, mouseX - bounds.x, mouseY - bounds.y);
             } else {
                 EFRecipeViewer.draw(graphics, Minecraft.getInstance().font, kind, mouseX - bounds.x, mouseY - bounds.y);
             }
-            graphics.pose().popPose();
+            pose.popMatrix();
             List<Component> lines = module.installed()
                     ? EFRecipeViewer.hoveredModuleTooltip(module, mouseX - bounds.x, mouseY - bounds.y)
                     : EFRecipeViewer.tooltipLines(EFRecipeViewer.hoveredStack(kind, mouseX - bounds.x, mouseY - bounds.y));
@@ -258,11 +281,11 @@ public final class EFReiClientPlugin implements REIClientPlugin {
         }
 
         @Override
-        public boolean mouseClicked(double mouseX, double mouseY, int button) {
-            if (button != 0 || !containsMouse(mouseX, mouseY)) {
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            if (event.button() != 0 || !containsMouse(event.x(), event.y())) {
                 return false;
             }
-            return EFRecipeViewer.clickNav(kind, mouseX - bounds.x, mouseY - bounds.y);
+            return EFRecipeViewer.clickNav(kind, event.x() - bounds.x, event.y() - bounds.y);
         }
 
         @Override

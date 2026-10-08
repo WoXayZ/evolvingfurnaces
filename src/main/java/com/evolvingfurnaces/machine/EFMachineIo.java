@@ -1,10 +1,10 @@
 package com.evolvingfurnaces.machine;
 
 import com.evolvingfurnaces.tier.EFIoRole;
+import java.util.Locale;
 import net.minecraft.core.Direction;
-import net.minecraft.nbt.CompoundTag;
-import net.minecraft.nbt.ListTag;
-import net.minecraft.nbt.Tag;
+import net.minecraft.world.level.storage.ValueInput;
+import net.minecraft.world.level.storage.ValueOutput;
 
 public final class EFMachineIo {
 
@@ -97,31 +97,24 @@ public final class EFMachineIo {
         }
     }
 
-    public void save(CompoundTag tag) {
-        ListTag list = new ListTag();
+    public void save(ValueOutput output) {
+        ValueOutput.ValueOutputList list = output.childrenList("Io");
         for (int i = 0; i < 6; i++) {
-            CompoundTag entry = new CompoundTag();
+            ValueOutput entry = list.addChild();
             entry.putString("face", Direction.from3DDataValue(i).getSerializedName());
             entry.putString("role", roles[i].getSerializedName());
-            list.add(entry);
         }
-        tag.put("Io", list);
     }
 
-    public void load(CompoundTag tag) {
+    public void load(ValueInput input) {
         resetDefaults();
-        if (!tag.contains("Io", Tag.TAG_LIST)) {
-            return;
-        }
-        ListTag list = tag.getList("Io", Tag.TAG_COMPOUND);
-        for (int i = 0; i < list.size(); i++) {
-            CompoundTag entry = list.getCompound(i);
-            Direction direction = Direction.byName(entry.getString("face"));
+        for (ValueInput entry : input.childrenListOrEmpty("Io")) {
+            Direction direction = Direction.byName(entry.getStringOr("face", ""));
             if (direction == null) {
                 continue;
             }
             try {
-                set(direction, EFIoRole.valueOf(entry.getString("role").toUpperCase()));
+                set(direction, EFIoRole.valueOf(entry.getStringOr("role", "").toUpperCase(Locale.ROOT)));
             } catch (IllegalArgumentException ignored) {
                 // keep default
             }

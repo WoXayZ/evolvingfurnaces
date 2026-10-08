@@ -8,20 +8,20 @@ import java.util.List;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
+import net.minecraft.resources.Identifier;
 
 public final class EFVanillaInfoOverlay {
 
     static final int INFO_W = 150;
     static final int INFO_H = 116;
     private static final int PANEL_TEX = 256;
-    private static final int TEXT = 0x404040;
-    private static final ResourceLocation INFO_PANEL = EFConstants.id("textures/gui/info_panel.png");
+    private static final int TEXT = 0xFF404040;
+    private static final Identifier INFO_PANEL = EFConstants.id("textures/gui/info_panel.png");
 
     private static boolean open;
     private static AbstractContainerScreen<?> screen;
@@ -43,7 +43,7 @@ public final class EFVanillaInfoOverlay {
         return open;
     }
 
-    public static boolean render(Screen current, GuiGraphics graphics, int mouseX, int mouseY) {
+    public static boolean render(Screen current, GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         if (!open || screen == null || current != screen || kind == null) {
             return false;
         }
@@ -51,9 +51,9 @@ public final class EFVanillaInfoOverlay {
         Font font = minecraft.font;
         int x = panelX(screen);
         int y = panelY(screen);
-        graphics.blit(INFO_PANEL, x, y, 0.0F, 0.0F, INFO_W, INFO_H, PANEL_TEX, PANEL_TEX);
+        graphics.blit(net.minecraft.client.renderer.RenderPipelines.GUI_TEXTURED, INFO_PANEL, x, y, 0.0F, 0.0F, INFO_W, INFO_H, PANEL_TEX, PANEL_TEX);
         Component title = Component.translatable("evolvingfurnaces.gui.info");
-        graphics.drawString(font, title, x + (INFO_W - font.width(title)) / 2, y + 5, TEXT, false);
+        graphics.text(font, title, x + (INFO_W - font.width(title)) / 2, y + 5, TEXT, false);
         List<Component> lines = new ArrayList<>();
         EFMachineTooltips.append(lines, kind, 0, 0, minecraft.player);
         int lineY = y + 18;
@@ -62,11 +62,11 @@ public final class EFVanillaInfoOverlay {
             if (line.getStyle().getColor() != null
                     && ChatFormatting.GOLD.getColor() != null
                     && line.getStyle().getColor().getValue() == ChatFormatting.GOLD.getColor()) {
-                color = 0xB36B00;
+                color = 0xFFB36B00;
             } else {
                 color = TEXT;
             }
-            graphics.drawString(font, line.copy().withStyle(style -> style.withColor(color)), x + 8, lineY, color, false);
+            graphics.text(font, line.copy().withStyle(style -> style.withColor(color)), x + 8, lineY, color, false);
             lineY += 10;
         }
         return true;

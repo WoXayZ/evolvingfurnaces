@@ -18,7 +18,7 @@ public class EvolvingMachineMenu extends AbstractFurnaceMenu {
     private final ContainerData data;
 
     public EvolvingMachineMenu(int containerId, Inventory inventory, EvolvingMachineBlockEntity machine, ContainerData data, EFMachineKind kind) {
-        super(EFMenus.MACHINE.get(), kind.recipeType(), kind.recipeBookType(), containerId, inventory, machine, data);
+        super(EFMenus.MACHINE.get(), kind.recipeType(), kind.recipeInputs(), kind.recipeBookType(), containerId, inventory, machine, data);
         this.kind = kind;
         this.blockPos = machine.getBlockPos();
         this.playerInventory = inventory;
