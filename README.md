@@ -1,7 +1,7 @@
 # Evolving Furnaces
 
 Upgrade vanilla furnaces, blast furnaces, smokers and brewing stands through data-driven tiers.
-Minecraft **26.1.2** / **NeoForge 26.1.2.114**. Version **1.3**.
+Minecraft **26.1.2** / **NeoForge 26.1.2.114**. Version **1.3-fix1**.
 
 Vanilla machines stay vanilla. You upgrade one in place into a Copper machine (level 1), then keep going. Each tier can change processing time, batch size, the visual style, and the upgrade cost.
 
